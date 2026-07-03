@@ -1,0 +1,58 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kel-robot"
+version = "0.3.0"
+description = "The modular Python brain for the Kel conversational robot"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openai>=2,<3",
+    "python-dotenv>=1,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<10",
+    "ruff>=0.11,<1",
+]
+voice = [
+    "numpy>=2,<3",
+    "opencv-python-headless>=4,<5",
+    "openai[realtime]>=2,<3",
+    "google-genai>=1,<2",
+    "pvporcupine>=3,<4",
+    "sounddevice>=0.5,<1",
+    "vosk>=0.3,<1",
+]
+robot = [
+    "pyserial>=3,<4",
+]
+face = [
+    "pygame-ce>=2.4,<3",
+]
+
+[project.scripts]
+kel = "kel.interfaces.cli:main"
+kel-realtime = "kel.interfaces.realtime_cli:main"
+kel-voice = "kel.interfaces.voice_cli:main"
+kel-blink = "kel.body.blink_test:main"
+kel-body = "kel.body.body_cli:main"
+kel-face = "kel.face.app:main"
+kel-seed-memory = "kel.memory.seed_memories:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kel"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
