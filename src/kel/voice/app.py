@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from openai import OpenAI
 
 from kel.ai.openai_chat import OpenAIChat
-from kel.config.settings import Settings
+from kel.config.settings import ConfigurationError, Settings
 from kel.conversation.session import ConversationSession
 from kel.prompts.kel_personality import build_kel_instructions
 from kel.voice.contracts import AudioPlayer, AudioRecorder
@@ -29,6 +29,11 @@ class VoiceApplication:
 
 def build_voice_application(settings: Settings) -> VoiceApplication:
     """Create the chained voice workflow and local audio devices."""
+    if not settings.openai_api_key:
+        raise ConfigurationError(
+            "Push-to-talk voice runs on OpenAI, which needs OPENAI_API_KEY in your .env. "
+            "For the free Gemini voice mode instead, run:  uv run kel-realtime"
+        )
     client = OpenAI(api_key=settings.openai_api_key)
     chat = OpenAIChat(
         api_key=settings.openai_api_key,

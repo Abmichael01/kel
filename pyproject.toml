@@ -36,6 +36,7 @@ face = [
 
 [project.scripts]
 kel = "kel.interfaces.cli:main"
+kel-setup = "kel.setup.cli:main"
 kel-realtime = "kel.interfaces.realtime_cli:main"
 kel-voice = "kel.interfaces.voice_cli:main"
 kel-blink = "kel.body.blink_test:main"

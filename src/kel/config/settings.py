@@ -108,9 +108,16 @@ class Settings:
     def from_mapping(cls, values: Mapping[str, str]) -> Settings:
         """Create settings from a mapping, keeping validation easy to unit test."""
         api_key = values.get("OPENAI_API_KEY", "").strip()
-        if not api_key or api_key == "replace-with-your-api-key":
+        if api_key == "replace-with-your-api-key":
+            api_key = ""
+        # OpenAI is only the brain when the provider is "openai". With the Gemini provider
+        # it is optional (used only for long-term memory + the older chained voice), so a
+        # Gemini-only user can start with just their free Google key.
+        realtime_provider = values.get("KEL_REALTIME_PROVIDER", "openai").strip().lower()
+        if realtime_provider == "openai" and not api_key:
             raise ConfigurationError(
-                "OPENAI_API_KEY is missing. Add your private key to the local .env file."
+                "OPENAI_API_KEY is missing. The OpenAI brain needs it - add it to your .env, "
+                "or set KEL_REALTIME_PROVIDER=gemini to use Google's free key instead."
             )
 
         model = values.get("KEL_OPENAI_MODEL", "gpt-5.4-mini").strip()
@@ -139,10 +146,8 @@ class Settings:
             values.get("KEL_REALTIME_ECHO_CANCEL", "false"),
             "KEL_REALTIME_ECHO_CANCEL",
         )
-        realtime_provider = values.get("KEL_REALTIME_PROVIDER", "openai").strip().lower()
         gemini_api_key = (
-            values.get("GEMINI_API_KEY", "").strip()
-            or values.get("KEL_GEMINI_API_KEY", "").strip()
+            values.get("GEMINI_API_KEY", "").strip() or values.get("KEL_GEMINI_API_KEY", "").strip()
         )
         gemini_realtime_model = values.get(
             "KEL_GEMINI_REALTIME_MODEL", "gemini-3.1-flash-live-preview"
@@ -186,9 +191,7 @@ class Settings:
         face_enabled = _parse_bool(values.get("KEL_FACE_ENABLED", "false"), "KEL_FACE_ENABLED")
         face_host = values.get("KEL_FACE_HOST", "127.0.0.1").strip() or "127.0.0.1"
         face_port_text = values.get("KEL_FACE_PORT", "8765").strip()
-        face_autostart = _parse_bool(
-            values.get("KEL_FACE_AUTOSTART", "true"), "KEL_FACE_AUTOSTART"
-        )
+        face_autostart = _parse_bool(values.get("KEL_FACE_AUTOSTART", "true"), "KEL_FACE_AUTOSTART")
         face_fullscreen = _parse_bool(
             values.get("KEL_FACE_FULLSCREEN", "true"), "KEL_FACE_FULLSCREEN"
         )

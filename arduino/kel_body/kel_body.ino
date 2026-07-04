@@ -28,21 +28,27 @@ struct Mood {
   uint8_t hMin, hMax, spd, sat, val;
   bool breathe;
   uint8_t eye, mouth;
+  // How this mood CARRIES THE HEAD (servo on pin 9): hAmp = swing in degrees (0 = still),
+  // hSpd = how fast it sways, hOff = resting posture offset from centre. So the head moves
+  // the way she feels - lively when excited, still when calm - not on a talking timer.
+  int8_t hAmp;
+  uint8_t hSpd;
+  int8_t hOff;
 };
 
 const Mood MOODS[] = {
-  {"sleeping",   0,   0, 0, 255, 255, true,  E_SLEEPY, M_FLAT},
-  {"listening", 80, 120, 3, 255, 255, false, E_OPEN,   M_FLAT},
-  {"thinking", 120, 170, 4, 255, 255, false, E_UP,     M_FLAT},
-  {"typing",   190, 230, 4, 255, 255, false, E_OPEN,   M_FLAT},
-  {"happy",     64, 115, 5, 255, 255, false, E_HAPPY,  M_SMILE},
-  {"excited",    0,  64, 7, 255, 255, false, E_WIDE,   M_OPEN},
-  {"sad",      150, 175, 2, 255, 150, false, E_SAD,    M_FROWN},
-  {"playful",    0, 255, 6, 255, 255, false, E_HAPPY,  M_SMILE},
-  {"love",     220, 255, 4, 255, 255, false, E_LOVE,   M_SMILE},
-  {"calm",     120, 160, 2, 255, 210, false, E_SLEEPY, M_FLAT},
-  {"alert",      0,  18, 9, 255, 255, false, E_WIDE,   M_OPEN},
-  {"normal",     0, 255, 1,  70, 180, false, E_OPEN,   M_FLAT},
+  {"sleeping",   0,   0, 0, 255, 255, true,  E_SLEEPY, M_FLAT,   0, 0, -22},
+  {"listening", 80, 120, 3, 255, 255, false, E_OPEN,   M_FLAT,   0, 0,   0},
+  {"thinking", 120, 170, 4, 255, 255, false, E_UP,     M_FLAT,   5, 2,  14},
+  {"typing",   190, 230, 4, 255, 255, false, E_OPEN,   M_FLAT,   0, 0,   0},
+  {"happy",     64, 115, 5, 255, 255, false, E_HAPPY,  M_SMILE, 11, 4,   0},
+  {"excited",    0,  64, 7, 255, 255, false, E_WIDE,   M_OPEN,  20, 8,   0},
+  {"sad",      150, 175, 2, 255, 150, false, E_SAD,    M_FROWN,  4, 1, -16},
+  {"playful",    0, 255, 6, 255, 255, false, E_HAPPY,  M_SMILE, 16, 7,   0},
+  {"love",     220, 255, 4, 255, 255, false, E_LOVE,   M_SMILE,  8, 2,   0},
+  {"calm",     120, 160, 2, 255, 210, false, E_SLEEPY, M_FLAT,   3, 1,   0},
+  {"alert",      0,  18, 9, 255, 255, false, E_WIDE,   M_OPEN,   7, 9,   8},
+  {"normal",     0, 255, 1,  70, 180, false, E_OPEN,   M_FLAT,   0, 0,   0},
 };
 const int MOOD_COUNT = sizeof(MOODS) / sizeof(MOODS[0]);
 
@@ -81,6 +87,12 @@ int hue = 0, hueDir = 1, breathV = 20, breathDir = 1;
 int staticR = 0, staticG = 0, staticB = 0;
 unsigned long lastTick = 0, nextBlink = 0, blinkEnd = 0;
 bool blinking = false;
+// Head motion for the ACTIVE mood (see Mood.hAmp/hSpd/hOff). A deliberate `servo` gesture
+// pauses this briefly (gestureUntil) so the nod/shake reads clearly, then the mood resumes.
+int8_t aHAmp = 0, aHOff = 0;
+uint8_t aHSpd = 0;
+float headPhase = 0;
+unsigned long lastHead = 0, gestureUntil = 0;
 
 char line[48];
 int lineLen = 0;
@@ -136,6 +148,9 @@ void applyMood(const Mood &m) {
   hue = m.hMin; hueDir = 1; animating = true;
   curMood = m.name; curEye = m.eye; curMouth = m.mouth;
   blinking = false;
+  aHAmp = m.hAmp; aHSpd = m.hSpd; aHOff = m.hOff;  // how this mood carries the head
+  headPhase = 0;
+  servos[0].write(clampAngle(90 + aHOff));         // settle into the mood's resting posture
   drawFace();
 }
 
@@ -156,8 +171,11 @@ void processCommand(char *cmd) {
   } else if (sscanf(cmd, "servo %d %d", &a, &b) == 2) {
     int idx = -1;
     for (int i = 0; i < SERVO_COUNT; i++) if (SERVO_PINS[i] == a) idx = i;
-    if (idx >= 0) { servos[idx].write(clampAngle(b)); Serial.println("ok"); }
-    else Serial.println("err: bad pin");
+    if (idx >= 0) {
+      servos[idx].write(clampAngle(b));
+      if (idx == 0) gestureUntil = millis() + 900;  // let a deliberate gesture read clearly
+      Serial.println("ok");
+    } else Serial.println("err: bad pin");
   } else {
     Serial.println("?");
   }
@@ -199,6 +217,15 @@ void loop() {
   }
 
   unsigned long now = millis();
+
+  // Head carries her MOOD: sway by the active mood's amount/speed around its resting
+  // posture, so she's lively when she feels something and still (hAmp 0) when she doesn't.
+  // Paused briefly after a deliberate `servo` gesture so nods/shakes aren't overwritten.
+  if (aHAmp != 0 && now >= gestureUntil && now - lastHead >= 30) {
+    lastHead = now;
+    headPhase += aHSpd * 0.02;
+    servos[0].write(clampAngle(90 + aHOff + (int)(aHAmp * sin(headPhase))));
+  }
 
   if (lcd && animating) {  // blink the eyes (mouth stays put)
     if (!blinking && now >= nextBlink) {

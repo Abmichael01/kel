@@ -31,22 +31,42 @@ Python 3.13 for the project.
 
 ## First-time setup
 
-1. Install the project and its development tools:
+1. Install the project. `voice` is her brain/audio, `face` is the on-screen face,
+   `robot` is the Arduino body (add `dev` if you'll run the tests):
 
    ```bash
-   uv sync --extra dev --extra voice
+   uv sync --extra voice --extra face --extra robot
    ```
 
-2. Open the existing private `.env` file and set `OPENAI_API_KEY`. This is the
-   project's single configuration file and is gitignored; never commit or share it.
-
-3. Start Kel's typed chat:
+2. Run the setup wizard. It asks for your (free) Gemini key, picks your audio,
+   can download the wake model, detects an Arduino, and writes your `.env`:
 
    ```bash
-   uv run kel
+   uv run kel-setup
    ```
 
-Inside the chat, use `/reset` to start a fresh conversation and `/exit` to stop.
+   Prefer to do it by hand? Copy `.env.example` to `.env` and fill it in. `.env`
+   is gitignored — never commit or share it. Kel runs on a **free Google Gemini
+   key alone**; an OpenAI key is optional (only long-term memory and the
+   push-to-talk mode use it).
+
+3. Start talking to her:
+
+   ```bash
+   uv run kel-realtime
+   ```
+
+   `uv run kel` is a typed-chat mode instead (that one needs an OpenAI key).
+
+## Sharing Kel with someone
+
+She's built to run on a fresh machine gracefully: with no Arduino she still
+talks (the body is optional), with no camera she just can't see, and with no
+OpenAI key she runs on Gemini alone (long-term memory turns off until a key is
+added). Hand a friend the repo, have them run `uv run kel-setup`, and she's
+ready. The wizard defaults to safe settings — computer/shell control is **off**
+until they explicitly turn it on. Everything below is Linux-oriented (audio,
+`wtype` typing, Niri desktop actions, serial ports).
 
 ## Start voice mode
 

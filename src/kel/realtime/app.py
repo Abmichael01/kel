@@ -54,7 +54,11 @@ def build_realtime_session(
             max_width=settings.vision_image_max_width,
         )
     memory = None
-    if settings.memory_enabled:
+    if settings.memory_enabled and not settings.openai_api_key:
+        # Long-term memory currently embeds through OpenAI, so without that key she simply
+        # runs without memory rather than failing to start (fine for a Gemini-only setup).
+        print("Long-term memory is off (needs an OpenAI key for embeddings); continuing.")
+    elif settings.memory_enabled:
         from pathlib import Path
 
         from openai import OpenAI

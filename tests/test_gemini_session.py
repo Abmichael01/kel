@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import threading
 from types import SimpleNamespace as NS
 from typing import Any
 
@@ -43,6 +44,22 @@ class FakeOrb:
         self.feelings.append(feeling)
 
     def set_state(self, _state: str) -> None: ...
+
+
+class FakeBody:
+    """A body whose gesture blocks until released, so a test can prove _move
+    returns (letting Kel speak) before the servo motion has finished."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, int]] = []
+        self.finished = False
+        self.release = threading.Event()
+
+    def gesture(self, name: str, pin: int) -> str:
+        self.release.wait(timeout=2.0)
+        self.calls.append((name, pin))
+        self.finished = True
+        return f"Did a {name}."
 
 
 class FakeLiveSession:
@@ -79,8 +96,11 @@ class FakeLiveSession:
 def _msg(**kwargs: Any) -> Any:
     # a Live message always carries these top-level fields (None when unused)
     base = dict(
-        tool_call=None, server_content=None, data=None,
-        session_resumption_update=None, go_away=None,
+        tool_call=None,
+        server_content=None,
+        data=None,
+        session_resumption_update=None,
+        go_away=None,
     )
     base.update(kwargs)
     return NS(**base)
@@ -120,7 +140,9 @@ def _done() -> Any:
     return _msg(server_content=content)
 
 
-def _build_session(orb: FakeOrb, on_event: Any, camera: Any = None) -> GeminiVoiceSession:
+def _build_session(
+    orb: FakeOrb, on_event: Any, camera: Any = None, body: Any = None
+) -> GeminiVoiceSession:
     settings = Settings.from_mapping({"OPENAI_API_KEY": "x", "KEL_BODY_ENABLED": "true"})
     options = RealtimeSessionOptions.from_settings(settings)
     return GeminiVoiceSession(
@@ -134,6 +156,7 @@ def _build_session(orb: FakeOrb, on_event: Any, camera: Any = None) -> GeminiVoi
         on_event=on_event,
         camera=camera,
         orb=orb,
+        body=body,
     )
 
 
@@ -253,3 +276,29 @@ def test_one_bad_message_does_not_end_the_conversation() -> None:
 
     assert any(kind == "error" for kind, _ in events)
     assert ("assistant_transcript", "Hello!") in events  # survived the bad message
+
+
+def test_move_lets_kel_speak_while_the_servo_is_still_moving() -> None:
+    """The move tool must not block on the gesture; motion runs in the background so
+    it overlaps speech instead of finishing before she says a word."""
+    orb = FakeOrb()
+    body = FakeBody()
+    session = _build_session(orb, lambda _event: None, body=body)
+
+    async def scenario() -> None:
+        summary = await session._move("nod")
+        # _move returned even though the gesture is still blocked (release not set),
+        # so Kel is free to start talking while the servo keeps moving.
+        assert body.finished is False
+        assert "nod" in summary.lower()
+
+        # Let the background gesture finish and confirm it actually ran with our args.
+        body.release.set()
+        for _ in range(200):
+            if body.finished:
+                break
+            await asyncio.sleep(0.005)
+        assert body.finished is True
+        assert body.calls == [("nod", 9)]
+
+    asyncio.run(scenario())

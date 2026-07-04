@@ -61,7 +61,8 @@ class BodyController:
         return f"Did a {name.replace('_', ' ')}."
 
     def set_mode(self, name: str) -> str:
-        """Switch the body's animated mood (the Arduino rolls its colours)."""
+        """Switch the body's animated mood (the Arduino rolls its colours AND carries her
+        head the way that mood moves — lively when excited, still when calm)."""
         return self._link.send(f"mode {name}")
 
     def close(self) -> None:

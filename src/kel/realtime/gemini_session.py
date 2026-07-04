@@ -55,8 +55,8 @@ GEMINI_INPUT_RATE = 16_000
 GEMINI_OUTPUT_RATE = 24_000
 
 _TONE_NOTE = (
-    "\n\nYou sometimes receive a short note like \"(voice tone: sounds quiet and "
-    "subdued)\" describing HOW the user sounds right now - their energy and pitch - "
+    '\n\nYou sometimes receive a short note like "(voice tone: sounds quiet and '
+    'subdued)" describing HOW the user sounds right now - their energy and pitch - '
     "since you otherwise only get their words. Read it together with what they say to "
     "sense their real mood, and respond to it warmly. Never read the note aloud or "
     "mention that you received it."
@@ -448,9 +448,7 @@ class GeminiVoiceSession:
             return
         await session.send_tool_response(
             function_responses=[
-                types.FunctionResponse(
-                    id=item["id"], name=item["name"], response=item["response"]
-                )
+                types.FunctionResponse(id=item["id"], name=item["name"], response=item["response"])
                 for item in responses
             ]
         )
@@ -495,9 +493,7 @@ class GeminiVoiceSession:
             if self._camera is None:
                 raise CameraError("No camera is configured.")
             # Bound the capture so a slow/stuck camera can never stall the connection.
-            jpeg = await asyncio.wait_for(
-                asyncio.to_thread(self._camera.capture_jpeg), timeout=6.0
-            )
+            jpeg = await asyncio.wait_for(asyncio.to_thread(self._camera.capture_jpeg), timeout=6.0)
         except Exception as error:  # noqa: BLE001 - any capture issue degrades gracefully
             self._emit("error", f"Camera unavailable: {error}")
             return f"The camera is unavailable right now ({error}).", None
@@ -537,11 +533,14 @@ class GeminiVoiceSession:
     async def _move(self, motion: str) -> str:
         motion = (motion or "nod").lower().replace(" ", "_").replace("-", "_")
         if self._body is not None:
-            summary = await asyncio.to_thread(
-                self._body.gesture, motion, self._body_servo_pin
-            )
-            self._emit("acted", summary)
-            return summary
+            # A deliberate one-off gesture (nod/shake/glance). Fire it in the background so it
+            # never blocks her speech, and keep the reply terse and stage-direction-style so she
+            # doesn't read it aloud - the prompt also tells her never to announce movements. Her
+            # everyday liveliness is separate: the Arduino carries her head by her current mood.
+            pretty = motion.replace("_", " ")
+            self._spawn(asyncio.to_thread(self._body.gesture, motion, self._body_servo_pin))
+            self._emit("acted", f"Moving: {pretty}")
+            return f"(did {pretty})"
         return "My body isn't connected right now."
 
     async def _open_url(self, url: str) -> str:
