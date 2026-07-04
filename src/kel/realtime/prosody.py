@@ -29,7 +29,7 @@ class ProsodyReader:
     def add(self, pcm: bytes) -> str | None:
         """Feed one mic chunk; return a tone cue when the voice notably shifts."""
         chunk = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
-        self._buf = np.concatenate([self._buf, chunk])[-self._win:]
+        self._buf = np.concatenate([self._buf, chunk])[-self._win :]
         if len(self._buf) < self._win * 0.6:
             return None
 

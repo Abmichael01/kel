@@ -24,6 +24,20 @@ _LOOK_TOOL = {
     "parameters": {"type": "object", "properties": {}, "required": []},
 }
 
+SEE_SCREEN_TOOL_NAME = "see_screen"
+_SEE_SCREEN_TOOL = {
+    "type": "function",
+    "name": SEE_SCREEN_TOOL_NAME,
+    "description": (
+        "Take a FRESH screenshot and see what is on the user's computer screen right "
+        "now. Call it automatically, yourself, before answering ANY question about "
+        "what is on their screen - an error message, code, text to read, a page or app "
+        "they are looking at, or anything they point to on screen. Take a new shot "
+        "every time; never reuse an old one, because the screen changes."
+    ),
+    "parameters": {"type": "object", "properties": {}, "required": []},
+}
+
 REMEMBER_TOOL_NAME = "remember"
 _REMEMBER_TOOL = {
     "type": "function",
@@ -263,6 +277,7 @@ class RealtimeSessionOptions:
     sample_rate: int = REALTIME_SAMPLE_RATE
     max_output_tokens: int = 512
     vision_enabled: bool = False
+    screen_enabled: bool = False
     memory_enabled: bool = False
     browser_enabled: bool = False
     shell_enabled: bool = False
@@ -280,6 +295,7 @@ class RealtimeSessionOptions:
             noise_reduction=settings.realtime_noise_reduction,
             language=settings.realtime_language,
             vision_enabled=settings.vision_enabled,
+            screen_enabled=settings.screen_enabled,
             memory_enabled=settings.memory_enabled,
             browser_enabled=settings.browser_enabled,
             shell_enabled=settings.shell_enabled,
@@ -335,6 +351,8 @@ class RealtimeSessionOptions:
         tools: list[dict[str, Any]] = []
         if self.vision_enabled:
             tools.append(_LOOK_TOOL)
+        if self.screen_enabled:
+            tools.append(_SEE_SCREEN_TOOL)
         if self.memory_enabled:
             tools.extend([_REMEMBER_TOOL, _RECALL_TOOL])
         if self.browser_enabled:

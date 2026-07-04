@@ -141,7 +141,7 @@ def _done() -> Any:
 
 
 def _build_session(
-    orb: FakeOrb, on_event: Any, camera: Any = None, body: Any = None
+    orb: FakeOrb, on_event: Any, camera: Any = None, body: Any = None, screen: Any = None
 ) -> GeminiVoiceSession:
     settings = Settings.from_mapping({"OPENAI_API_KEY": "x", "KEL_BODY_ENABLED": "true"})
     options = RealtimeSessionOptions.from_settings(settings)
@@ -155,6 +155,7 @@ def _build_session(
         speaker=FakeSpeaker(),
         on_event=on_event,
         camera=camera,
+        screen=screen,
         orb=orb,
         body=body,
     )
@@ -276,6 +277,32 @@ def test_one_bad_message_does_not_end_the_conversation() -> None:
 
     assert any(kind == "error" for kind, _ in events)
     assert ("assistant_transcript", "Hello!") in events  # survived the bad message
+
+
+class _FakeScreen:
+    def __init__(self, jpeg: bytes = b"SCREENSHOT") -> None:
+        self._jpeg = jpeg
+
+    def capture_jpeg(self) -> bytes:
+        return self._jpeg
+
+
+def test_see_screen_attaches_a_screenshot_when_a_screen_is_present() -> None:
+    session = _build_session(FakeOrb(), lambda _event: None, screen=_FakeScreen(b"IMG"))
+
+    text, image = asyncio.run(session._see_screen())
+
+    assert image == b"IMG"  # the screenshot is attached for the model to read
+    assert "screen" in text.lower()
+
+
+def test_see_screen_degrades_cleanly_with_no_screen() -> None:
+    session = _build_session(FakeOrb(), lambda _event: None)  # no screen configured
+
+    text, image = asyncio.run(session._see_screen())
+
+    assert image is None  # nothing attached
+    assert "can't see the screen" in text.lower()  # she says so instead of crashing
 
 
 def test_move_lets_kel_speak_while_the_servo_is_still_moving() -> None:

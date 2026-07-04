@@ -22,6 +22,7 @@ class Answers:
     audio_output_device: str = ""
     wake_enabled: bool = False
     wake_model_path: str = ""
+    screen_enabled: bool = False
     body_enabled: bool = False
     body_port: str = ""
     shell_enabled: bool = False
@@ -62,6 +63,9 @@ def build_env_text(a: Answers) -> str:
         "# Vision (photo only when she calls her look tool; fine with no camera).",
         "KEL_VISION_ENABLED=true",
         "KEL_CAMERA_DEVICE=0",
+        "# Screen vision via a see_screen tool (needs grim on Wayland/wlroots).",
+        f"KEL_SCREEN_ENABLED={_b(a.screen_enabled)}",
+        "KEL_SCREEN_MAX_WIDTH=1280",
         "",
         "# Long-term memory (auto-off if no OpenAI key).",
         "KEL_MEMORY_ENABLED=true",
@@ -108,6 +112,7 @@ def summary(a: Answers) -> list[str]:
         f"Brain:   Gemini ({'key set' if a.gemini_api_key else 'NO KEY - she will not start'})",
         f"Memory:  {on if a.openai_api_key else off + ' (add an OpenAI key later to enable)'}",
         f"Wake:    {on if a.wake_enabled else off}",
+        f"Screen:  {on if a.screen_enabled else off}",
         f"Body:    {on if a.body_enabled else off}",
         f"Face:    {on if a.face_enabled else off}",
         f"Control: browser on, shell {on if a.shell_enabled else off}",

@@ -53,6 +53,11 @@ def build_realtime_session(
             device_index=settings.camera_device_index,
             max_width=settings.vision_image_max_width,
         )
+    screen = None
+    if settings.screen_enabled:
+        from kel.vision.screen import GrimScreen
+
+        screen = GrimScreen(max_width=settings.screen_max_width)
     memory = None
     if settings.memory_enabled and not settings.openai_api_key:
         # Long-term memory currently embeds through OpenAI, so without that key she simply
@@ -126,6 +131,7 @@ def build_realtime_session(
         on_event=on_event,
         half_duplex=settings.realtime_half_duplex,
         camera=camera,
+        screen=screen,
         memory=memory,
         auto_capture_memory=settings.memory_auto_capture,
         browser=browser,

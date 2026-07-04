@@ -123,6 +123,10 @@ def main() -> None:
         path = _download_wake_model(project_root / "models")
         wake_enabled, wake_path = (bool(path), path or "")
 
+    screen_enabled = _ask_yes_no(
+        "\nLet Kel see your screen? (a see_screen tool; needs grim on Wayland)", False
+    )
+
     body_enabled, body_port = _detect_body()
 
     print("\nComputer control lets Kel run terminal commands on THIS machine.")
@@ -138,6 +142,7 @@ def main() -> None:
         audio_output_device=output_device,
         wake_enabled=wake_enabled,
         wake_model_path=wake_path,
+        screen_enabled=screen_enabled,
         body_enabled=body_enabled,
         body_port=body_port,
         shell_enabled=shell_enabled,

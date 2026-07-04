@@ -78,6 +78,8 @@ class Settings:
     vision_enabled: bool = True
     camera_device_index: int = 0
     vision_image_max_width: int = 768
+    screen_enabled: bool = False
+    screen_max_width: int = 1280
     browser_enabled: bool = True
     shell_enabled: bool = False
     shell_timeout_seconds: int = 20
@@ -175,6 +177,10 @@ class Settings:
         vision_enabled = _parse_bool(values.get("KEL_VISION_ENABLED", "true"), "KEL_VISION_ENABLED")
         camera_device_text = values.get("KEL_CAMERA_DEVICE", "0").strip()
         vision_max_width_text = values.get("KEL_VISION_MAX_WIDTH", "768").strip()
+        screen_enabled = _parse_bool(
+            values.get("KEL_SCREEN_ENABLED", "false"), "KEL_SCREEN_ENABLED"
+        )
+        screen_max_width_text = values.get("KEL_SCREEN_MAX_WIDTH", "1280").strip()
         browser_enabled = _parse_bool(
             values.get("KEL_BROWSER_ENABLED", "true"), "KEL_BROWSER_ENABLED"
         )
@@ -303,6 +309,13 @@ class Settings:
             raise ConfigurationError("KEL_VISION_MAX_WIDTH must be positive.")
 
         try:
+            screen_max_width = int(screen_max_width_text)
+        except ValueError as error:
+            raise ConfigurationError("KEL_SCREEN_MAX_WIDTH must be an integer.") from error
+        if screen_max_width <= 0:
+            raise ConfigurationError("KEL_SCREEN_MAX_WIDTH must be positive.")
+
+        try:
             shell_timeout_seconds = int(shell_timeout_text)
         except ValueError as error:
             raise ConfigurationError("KEL_SHELL_TIMEOUT_SECONDS must be an integer.") from error
@@ -357,6 +370,8 @@ class Settings:
             vision_enabled=vision_enabled,
             camera_device_index=camera_device_index,
             vision_image_max_width=vision_image_max_width,
+            screen_enabled=screen_enabled,
+            screen_max_width=screen_max_width,
             browser_enabled=browser_enabled,
             shell_enabled=shell_enabled,
             shell_timeout_seconds=shell_timeout_seconds,

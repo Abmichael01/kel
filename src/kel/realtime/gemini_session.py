@@ -35,6 +35,7 @@ from kel.realtime.options import (
     REMEMBER_TOOL_NAME,
     RUN_COMMAND_TOOL_NAME,
     RUN_IN_TERMINAL_TOOL_NAME,
+    SEE_SCREEN_TOOL_NAME,
     SET_FEELING_TOOL_NAME,
     START_TYPE_MODE_TOOL_NAME,
     SWIPE_DESKTOP_TOOL_NAME,
@@ -47,6 +48,7 @@ from kel.system.keyboard import Keyboard
 from kel.system.launcher import TerminalLauncher
 from kel.system.shell import ShellRunner
 from kel.vision.camera import Camera, CameraError
+from kel.vision.screen import Screen, ScreenError
 
 RealtimeEventHandler = Callable[[RealtimeDisplayEvent], None]
 
@@ -83,6 +85,7 @@ class GeminiVoiceSession:
         half_duplex: bool = True,
         mute_tail_frames: int = 15,
         camera: Camera | None = None,
+        screen: Screen | None = None,
         memory: MemoryStore | None = None,
         auto_capture_memory: bool = False,
         browser: Browser | None = None,
@@ -116,6 +119,7 @@ class GeminiVoiceSession:
         self._half_duplex = half_duplex
         self._mute_tail_frames = mute_tail_frames
         self._camera = camera
+        self._screen = screen
         self._memory = memory
         self._auto_capture_memory = auto_capture_memory
         self._browser = browser
@@ -457,6 +461,8 @@ class GeminiVoiceSession:
         """Execute one tool and return its text result plus an optional image."""
         if name == LOOK_TOOL_NAME:
             return await self._look()
+        if name == SEE_SCREEN_TOOL_NAME:
+            return await self._see_screen()
         if name == REMEMBER_TOOL_NAME:
             return await self._remember(self._arg(args, "text")), None
         if name == RECALL_TOOL_NAME:
@@ -499,6 +505,18 @@ class GeminiVoiceSession:
             return f"The camera is unavailable right now ({error}).", None
         self._emit("looked", "Kel glanced at the camera.")
         return "Captured the current camera view; it is attached as an image.", jpeg
+
+    async def _see_screen(self) -> tuple[str, bytes | None]:
+        """Capture one screenshot to attach for the model to read."""
+        try:
+            if self._screen is None:
+                raise ScreenError("No screen capture is configured.")
+            jpeg = await asyncio.wait_for(asyncio.to_thread(self._screen.capture_jpeg), timeout=8.0)
+        except Exception as error:  # noqa: BLE001 - any capture issue degrades gracefully
+            self._emit("error", f"Screen unavailable: {error}")
+            return f"I can't see the screen right now ({error}).", None
+        self._emit("looked", "Kel glanced at the screen.")
+        return "Captured the current screen; it is attached as an image.", jpeg
 
     async def _remember(self, text: str) -> str:
         if self._memory is not None and text:

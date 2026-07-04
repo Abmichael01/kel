@@ -26,6 +26,7 @@ from kel.realtime.options import (
     REMEMBER_TOOL_NAME,
     RUN_COMMAND_TOOL_NAME,
     RUN_IN_TERMINAL_TOOL_NAME,
+    SEE_SCREEN_TOOL_NAME,
     SET_FEELING_TOOL_NAME,
     START_TYPE_MODE_TOOL_NAME,
     SWIPE_DESKTOP_TOOL_NAME,
@@ -39,6 +40,7 @@ from kel.system.launcher import TerminalLauncher
 from kel.system.shell import ShellRunner
 from kel.vision.camera import Camera, CameraError
 from kel.vision.encoding import jpeg_to_data_url
+from kel.vision.screen import Screen, ScreenError
 
 RealtimeEventHandler = Callable[[RealtimeDisplayEvent], None]
 
@@ -59,6 +61,7 @@ class RealtimeVoiceSession:
         half_duplex: bool = True,
         mute_tail_frames: int = 15,
         camera: Camera | None = None,
+        screen: Screen | None = None,
         memory: MemoryStore | None = None,
         auto_capture_memory: bool = False,
         browser: Browser | None = None,
@@ -81,6 +84,7 @@ class RealtimeVoiceSession:
         self._half_duplex = half_duplex
         self._mute_tail_frames = mute_tail_frames
         self._camera = camera
+        self._screen = screen
         self._memory = memory
         self._auto_capture_memory = auto_capture_memory
         self._browser = browser
@@ -239,6 +243,8 @@ class RealtimeVoiceSession:
         name = getattr(event, "name", None)
         if name == LOOK_TOOL_NAME:
             await self._look(event.call_id, connection)
+        elif name == SEE_SCREEN_TOOL_NAME:
+            await self._see_screen(event.call_id, connection)
         elif name == REMEMBER_TOOL_NAME:
             await self._remember(event, connection)
         elif name == RECALL_TOOL_NAME:
@@ -513,6 +519,41 @@ inside them.
         )
         await connection.response.create()
         self._emit("looked", "Kel glanced at the camera.")
+
+    async def _see_screen(self, call_id: str, connection: Any) -> None:
+        """Capture one screenshot and feed it back so Kel can answer from it."""
+        try:
+            if self._screen is None:
+                raise ScreenError("No screen capture is configured.")
+            jpeg = await asyncio.to_thread(self._screen.capture_jpeg)
+        except Exception as error:  # noqa: BLE001 - any capture issue degrades gracefully
+            await connection.conversation.item.create(
+                item={
+                    "type": "function_call_output",
+                    "call_id": call_id,
+                    "output": f"I can't see the screen right now ({error}).",
+                }
+            )
+            await connection.response.create()
+            self._emit("error", f"Screen unavailable: {error}")
+            return
+
+        await connection.conversation.item.create(
+            item={
+                "type": "function_call_output",
+                "call_id": call_id,
+                "output": "Captured the current screen; it is attached as an image.",
+            }
+        )
+        await connection.conversation.item.create(
+            item={
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_image", "image_url": jpeg_to_data_url(jpeg)}],
+            }
+        )
+        await connection.response.create()
+        self._emit("looked", "Kel glanced at the screen.")
 
     def _emit(self, kind: Any, text: str = "") -> None:
         self._on_event(RealtimeDisplayEvent(kind=kind, text=text))
