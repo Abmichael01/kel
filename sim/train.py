@@ -16,18 +16,22 @@ Then watch the result with:  python watch.py
 
 from __future__ import annotations
 
+import sys
+
 import gymnasium as gym
 from stable_baselines3 import PPO
 
-TIMESTEPS = 1_000_000  # ~an hour on CPU; the gait emerges well before the end
+DEFAULT_TIMESTEPS = 1_000_000  # ~an hour on CPU; the gait emerges well before the end
 POLICY_PATH = "ant_walk"
 
 
 def main() -> None:
+    # Optional: `python train.py 400000` for a quicker, rougher first gait.
+    timesteps = int(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_TIMESTEPS
     env = gym.make("Ant-v5")
     model = PPO("MlpPolicy", env, verbose=1, device="cpu")
-    print(f"Training for {TIMESTEPS:,} steps — watch 'ep_rew_mean' climb as it learns to move.")
-    model.learn(total_timesteps=TIMESTEPS)
+    print(f"Training for {timesteps:,} steps — watch 'ep_rew_mean' climb as it learns to move.")
+    model.learn(total_timesteps=timesteps)
     model.save(POLICY_PATH)
     print(f"\nDone. Saved the walking policy to {POLICY_PATH}.zip — now run: python watch.py")
 

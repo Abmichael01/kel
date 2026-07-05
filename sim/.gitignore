@@ -1,3 +1,6 @@
 .venv/
 __pycache__/
 *.zip
+mujoco_menagerie/
+*.png
+*.log
