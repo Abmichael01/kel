@@ -1,0 +1,67 @@
+<!--
+  Kel — a simple wheeled robot you can build from cardboard:
+    * 2 driven wheels + 1 front caster (differential drive: spin wheels to move/turn)
+    * a head on a neck that PANS (looks left/right) and TILTS (looks up/down)
+  No walking AI needed - wheels are driven directly. This model is for seeing the
+  shape and (optionally) simulating driving + looking around.
+-->
+<mujoco model="kel_wheeled">
+  <compiler angle="radian" autolimits="true"/>
+  <option timestep="0.005" gravity="0 0 -9.81"/>
+
+  <default>
+    <geom friction="1 0.5 0.5"/>
+    <joint damping="0.05"/>
+  </default>
+
+  <worldbody>
+    <light pos="0.25 0.2 1.0" dir="0 0 -1" diffuse="0.95 0.95 0.95"/>
+    <geom name="floor" type="plane" size="3 3 0.1" rgba="0.30 0.40 0.50 1"/>
+
+    <body name="chassis" pos="0 0 0.055">
+      <freejoint/>
+      <!-- cardboard body -->
+      <geom name="body" type="box" size="0.09 0.05 0.02" rgba="0.95 0.80 0.45 1" density="200"/>
+
+      <!-- two driven wheels -->
+      <body name="left_wheel" pos="-0.02 0.065 -0.015">
+        <joint name="left_wheel" type="hinge" axis="0 1 0"/>
+        <geom type="cylinder" size="0.04 0.012" euler="1.5708 0 0"
+              rgba="0.13 0.13 0.13 1" density="300"/>
+      </body>
+      <body name="right_wheel" pos="-0.02 -0.065 -0.015">
+        <joint name="right_wheel" type="hinge" axis="0 1 0"/>
+        <geom type="cylinder" size="0.04 0.012" euler="1.5708 0 0"
+              rgba="0.13 0.13 0.13 1" density="300"/>
+      </body>
+
+      <!-- front caster: a low-friction ball that just rolls/slides along -->
+      <geom name="caster" type="sphere" pos="0.08 0 -0.035" size="0.02"
+            rgba="0.30 0.30 0.30 1" friction="0.1 0.05 0.05" density="200"/>
+
+      <!-- head + neck that looks around -->
+      <body name="neck" pos="0.03 0 0.03">
+        <joint name="head_pan" type="hinge" axis="0 0 1" range="-1.2 1.2"/>
+        <geom type="capsule" fromto="0 0 0 0 0 0.03" size="0.008"
+              rgba="0.55 0.55 0.60 1" density="100"/>
+        <body name="head" pos="0 0 0.045">
+          <joint name="head_tilt" type="hinge" axis="0 1 0" range="-0.6 0.6"/>
+          <geom name="head" type="box" size="0.03 0.035 0.025"
+                rgba="0.95 0.80 0.45 1" density="100"/>
+          <!-- two glowing eyes on the front face -->
+          <geom type="sphere" pos="0.03 0.018 0.008" size="0.011" rgba="0.10 0.90 1.0 1"/>
+          <geom type="sphere" pos="0.03 -0.018 0.008" size="0.011" rgba="0.10 0.90 1.0 1"/>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <!-- wheels: velocity-driven (this is how Kel would 'drive forward' / 'turn') -->
+    <velocity name="left_wheel" joint="left_wheel" kv="0.05"/>
+    <velocity name="right_wheel" joint="right_wheel" kv="0.05"/>
+    <!-- head servos: position-driven, to look around -->
+    <position name="head_pan" joint="head_pan" kp="0.5"/>
+    <position name="head_tilt" joint="head_tilt" kp="0.5"/>
+  </actuator>
+</mujoco>
