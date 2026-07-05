@@ -1,0 +1,88 @@
+<!--
+  Kel — a simple CARDBOARD-buildable quadruped, modelled honestly:
+    * flat light body (cardboard-ish density)
+    * 4 legs, 2 servos each = 8x SG-90 (a hip that swings the leg + a knee that lifts it)
+    * actuator force limited to ~0.18 N·m = a real SG-90's stall torque
+  So the sim tells the truth about what a cheap cardboard build can actually do.
+-->
+<mujoco model="kel_cardboard_quad">
+  <compiler angle="radian" autolimits="true"/>
+  <option timestep="0.005" gravity="0 0 -9.81"/>
+
+  <default>
+    <!-- all joints swing in the forward/back plane (walking direction) -->
+    <joint type="hinge" axis="0 1 0" damping="0.05" armature="0.01"/>
+    <geom density="250" friction="1 0.5 0.5" rgba="0.85 0.70 0.45 1"/>
+    <!-- position servo, capped at an SG-90's real torque -->
+    <position kp="2.5" forcerange="-0.18 0.18"/>
+  </default>
+
+  <worldbody>
+    <light pos="0.3 0.2 1.2" dir="0 0 -1" diffuse="0.9 0.9 0.9"/>
+    <geom name="floor" type="plane" size="3 3 0.1" rgba="0.30 0.40 0.50 1"/>
+
+    <body name="torso" pos="0 0 0.11">
+      <freejoint/>
+      <geom name="body" type="box" size="0.09 0.045 0.008" rgba="0.92 0.78 0.52 1"/>
+
+      <body name="fl_hip" pos="0.08 0.05 0">
+        <joint name="fl_hip" range="-0.9 0.9"/>
+        <geom name="fl_thigh" type="capsule" fromto="0 0 0  0 0 -0.05" size="0.006"/>
+        <body name="fl_knee" pos="0 0 -0.05">
+          <joint name="fl_knee" range="-0.3 1.6"/>
+          <geom name="fl_shin" type="capsule" fromto="0 0 0  0 0 -0.055" size="0.005"/>
+          <geom name="fl_foot" type="sphere" pos="0 0 -0.055" size="0.009" friction="1.5 0.5 0.5"/>
+        </body>
+      </body>
+
+      <body name="fr_hip" pos="0.08 -0.05 0">
+        <joint name="fr_hip" range="-0.9 0.9"/>
+        <geom name="fr_thigh" type="capsule" fromto="0 0 0  0 0 -0.05" size="0.006"/>
+        <body name="fr_knee" pos="0 0 -0.05">
+          <joint name="fr_knee" range="-0.3 1.6"/>
+          <geom name="fr_shin" type="capsule" fromto="0 0 0  0 0 -0.055" size="0.005"/>
+          <geom name="fr_foot" type="sphere" pos="0 0 -0.055" size="0.009" friction="1.5 0.5 0.5"/>
+        </body>
+      </body>
+
+      <body name="bl_hip" pos="-0.08 0.05 0">
+        <joint name="bl_hip" range="-0.9 0.9"/>
+        <geom name="bl_thigh" type="capsule" fromto="0 0 0  0 0 -0.05" size="0.006"/>
+        <body name="bl_knee" pos="0 0 -0.05">
+          <joint name="bl_knee" range="-0.3 1.6"/>
+          <geom name="bl_shin" type="capsule" fromto="0 0 0  0 0 -0.055" size="0.005"/>
+          <geom name="bl_foot" type="sphere" pos="0 0 -0.055" size="0.009" friction="1.5 0.5 0.5"/>
+        </body>
+      </body>
+
+      <body name="br_hip" pos="-0.08 -0.05 0">
+        <joint name="br_hip" range="-0.9 0.9"/>
+        <geom name="br_thigh" type="capsule" fromto="0 0 0  0 0 -0.05" size="0.006"/>
+        <body name="br_knee" pos="0 0 -0.05">
+          <joint name="br_knee" range="-0.3 1.6"/>
+          <geom name="br_shin" type="capsule" fromto="0 0 0  0 0 -0.055" size="0.005"/>
+          <geom name="br_foot" type="sphere" pos="0 0 -0.055" size="0.009" friction="1.5 0.5 0.5"/>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <position name="fl_hip" joint="fl_hip"/>
+    <position name="fl_knee" joint="fl_knee"/>
+    <position name="fr_hip" joint="fr_hip"/>
+    <position name="fr_knee" joint="fr_knee"/>
+    <position name="bl_hip" joint="bl_hip"/>
+    <position name="bl_knee" joint="bl_knee"/>
+    <position name="br_hip" joint="br_hip"/>
+    <position name="br_knee" joint="br_knee"/>
+  </actuator>
+
+  <keyframe>
+    <!-- home: a crouched, dog-like stance (thigh forward, knee bent). Also a real test of
+         whether the weak SG-90 servos can HOLD a bent-leg pose against gravity. -->
+    <key name="home"
+         qpos="0 0 0.09  1 0 0 0   -0.4 0.8  -0.4 0.8  -0.4 0.8  -0.4 0.8"
+         ctrl="-0.4 0.8 -0.4 0.8 -0.4 0.8 -0.4 0.8"/>
+  </keyframe>
+</mujoco>
