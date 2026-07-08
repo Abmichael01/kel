@@ -121,3 +121,28 @@ def test_a_malformed_but_valid_manifest_does_not_abort_the_whole_scan(tmp_path: 
     store = SkillStore(tmp_path)
 
     assert [s.name for s in store.all()] == ["good"]
+
+
+def test_arm_turns_a_skill_on_and_persists(tmp_path: Path) -> None:
+    write_skill(tmp_path, "greet", enabled=False)
+    store = SkillStore(tmp_path)
+
+    assert store.arm("greet") is True
+    assert [s.name for s in store.armed()] == ["greet"]
+    # Persisted, so a fresh store sees it too.
+    assert [s.name for s in SkillStore(tmp_path).armed()] == ["greet"]
+
+
+def test_disarm_turns_a_skill_off_and_persists(tmp_path: Path) -> None:
+    write_skill(tmp_path, "greet", enabled=True)
+    store = SkillStore(tmp_path)
+
+    assert store.disarm("greet") is True
+    assert store.armed() == []
+    assert SkillStore(tmp_path).armed() == []
+
+
+def test_arming_an_unknown_skill_returns_false(tmp_path: Path) -> None:
+    store = SkillStore(tmp_path)
+
+    assert store.arm("ghost") is False

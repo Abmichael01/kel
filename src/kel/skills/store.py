@@ -53,6 +53,24 @@ class SkillStore:
         """Return the skill with this name, or None."""
         return next((skill for skill in self.all() if skill.name == name), None)
 
+    def arm(self, name: str) -> bool:
+        """Turn a skill's gate on; return False if there is no such skill."""
+        return self._set_enabled(name, True)
+
+    def disarm(self, name: str) -> bool:
+        """Turn a skill's gate off; return False if there is no such skill."""
+        return self._set_enabled(name, False)
+
+    def _set_enabled(self, name: str, enabled: bool) -> bool:
+        skill = self.get(name)
+        if skill is None:
+            return False
+        manifest_path = skill.directory / "skill.json"
+        data = json.loads(manifest_path.read_text())
+        data["enabled"] = enabled
+        manifest_path.write_text(json.dumps(data, indent=2))
+        return True
+
     def _load_one(self, directory: Path) -> Skill | None:
         manifest_path = directory / "skill.json"
         script_path = directory / "skill.py"
