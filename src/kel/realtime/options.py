@@ -395,6 +395,10 @@ class RealtimeSessionOptions:
             )
         return tools
 
+    def tools_update(self, tool_specs: list[dict[str, Any]]) -> dict[str, Any]:
+        """A partial session update that re-declares the available tools."""
+        return {"type": "realtime", "tools": tool_specs, "tool_choice": "auto"}
+
     def type_mode_update(self, *, enabled: bool) -> dict[str, Any]:
         """Update VAD so dictation produces transcripts without AI responses."""
         return {

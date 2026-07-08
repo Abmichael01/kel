@@ -893,3 +893,23 @@ def test_a_tool_call_for_an_unknown_skill_replies_gracefully(tmp_path: Path) -> 
 
     assert "ghost" in items.created[0]["output"]
     assert responses.count == 1
+
+
+def test_arming_a_skill_mid_session_re_sends_the_tool_list(tmp_path: Path) -> None:
+    write_session_skill(tmp_path, "greet", "def run(who=''):\n    return who\n")
+    store = SkillStore(tmp_path)
+    session = build_skill_session(store, [])
+    connection, _, _ = fake_connection()
+
+    async def drive() -> None:
+        # First turn establishes the baseline (greet is already armed).
+        await session.handle_event(transcript_event("hello"), connection)
+        # Arm a second skill, then take another turn.
+        write_session_skill(tmp_path, "bye", "def run(who=''):\n    return who\n")
+        await session.handle_event(transcript_event("still there?"), connection)
+
+    asyncio.run(drive())
+
+    tool_updates = [u for u in connection.session.updated if "tools" in u]
+    assert tool_updates, "expected a session.update carrying tools after arming a new skill"
+    assert "bye" in {tool["name"] for tool in tool_updates[-1]["tools"]}

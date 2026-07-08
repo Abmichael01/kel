@@ -196,3 +196,16 @@ def test_api_payload_appends_extra_tools() -> None:
 
     names = {tool["name"] for tool in payload["tools"]}
     assert "make_qr_code" in names
+
+
+def test_tools_update_carries_a_fresh_tool_list() -> None:
+    options = RealtimeSessionOptions.from_settings(
+        Settings.from_mapping({"OPENAI_API_KEY": "test-key"})
+    )
+    specs = [{"type": "function", "name": "greet", "description": "x", "parameters": {}}]
+
+    payload = options.tools_update(specs)
+
+    assert payload["type"] == "realtime"
+    assert payload["tool_choice"] == "auto"
+    assert [tool["name"] for tool in payload["tools"]] == ["greet"]

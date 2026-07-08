@@ -102,6 +102,7 @@ class RealtimeVoiceSession:
         self._orb = orb
         self._skills = skills
         self._skills_timeout = skills_timeout
+        self._sent_skill_names: set[str] | None = None
         self._type_mode = False
         self._type_mode_needs_separator = False
         self._speaking = False
@@ -300,6 +301,22 @@ class RealtimeVoiceSession:
         result = await asyncio.to_thread(run_skill, skill, args, timeout=self._skills_timeout)
         await self._reply_to_tool(connection, event.call_id, result.output)
 
+    async def _sync_skill_tools(self, connection: Any) -> None:
+        """Re-send the tool list when the armed-skill set changed since last turn."""
+        if self._skills is None:
+            return
+        current = {spec["name"] for spec in self._skill_specs()}
+        if self._sent_skill_names is None:
+            self._sent_skill_names = current
+            return
+        if current != self._sent_skill_names:
+            self._sent_skill_names = current
+            await connection.session.update(
+                session=self._options.tools_update(
+                    [*self._options.tool_specs(), *self._skill_specs()]
+                )
+            )
+
     @staticmethod
     def _tool_argument(event: Any, key: str) -> str:
         try:
@@ -373,6 +390,7 @@ class RealtimeVoiceSession:
         """Recall relevant memory, then manually start the model's response."""
         if not transcript:
             return
+        await self._sync_skill_tools(connection)
         memories: list[str] = []
         if self._memory is not None:
             try:
