@@ -273,9 +273,5 @@ def test_skills_can_be_configured() -> None:
 
 
 def test_a_non_positive_skills_timeout_is_rejected() -> None:
-    import pytest
-
-    from kel.config.settings import ConfigurationError
-
     with pytest.raises(ConfigurationError):
         Settings.from_mapping({"OPENAI_API_KEY": "test-key", "KEL_SKILLS_TIMEOUT_SECONDS": "0"})

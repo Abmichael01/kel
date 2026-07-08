@@ -105,12 +105,12 @@ class SkillStore:
                 name=name,
                 description=str(data.get("description", "")),
                 parameters=parameters,
-                enabled=bool(data.get("enabled", False)),
+                enabled=(data.get("enabled") is True),
                 author=str(data.get("author", "unknown")),
                 created_at=str(data.get("created_at", "")),
                 version=int(data.get("version", 1)),
                 directory=directory,
             )
-        except (AttributeError, TypeError, ValueError, KeyError):
+        except (AttributeError, TypeError, ValueError):
             _LOG.warning("skill %s has a malformed manifest; skipping", name)
             return None

@@ -60,3 +60,24 @@ def test_run_executes_a_skill_and_prints_its_output(monkeypatch, tmp_path, capsy
     out = capsys.readouterr().out
     assert "who" in out
     assert "you" in out
+
+
+def test_disarm_turns_a_skill_off(monkeypatch, tmp_path, capsys) -> None:
+    write_skill(tmp_path, "greet", enabled=True)
+    prepare_env(monkeypatch, tmp_path)
+
+    main(["disarm", "greet"])
+
+    assert json.loads((tmp_path / "greet" / "skill.json").read_text())["enabled"] is False
+
+
+def test_run_with_bad_json_args_prints_a_friendly_message_and_does_not_raise(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    write_skill(tmp_path, "greet", enabled=True)
+    prepare_env(monkeypatch, tmp_path)
+
+    main(["run", "greet", "not-json"])
+
+    out = capsys.readouterr().out
+    assert "invalid JSON" in out

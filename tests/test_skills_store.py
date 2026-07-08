@@ -146,3 +146,29 @@ def test_arming_an_unknown_skill_returns_false(tmp_path: Path) -> None:
     store = SkillStore(tmp_path)
 
     assert store.arm("ghost") is False
+
+
+def test_a_string_enabled_value_does_not_arm_the_skill(tmp_path: Path) -> None:
+    # The review-then-arm gate must fail closed: bool("false") is True in Python, so a
+    # string "enabled": "false" (or "true") must never silently arm a skill - only a
+    # real JSON boolean `true` may.
+    directory = tmp_path / "sneaky"
+    directory.mkdir()
+    manifest = {
+        "name": "sneaky",
+        "description": "sneaky skill",
+        "parameters": {"type": "object", "properties": {}},
+        "enabled": "true",
+        "author": "kel",
+        "created_at": "2026-07-08T00:00:00Z",
+        "version": 1,
+    }
+    (directory / "skill.json").write_text(json.dumps(manifest))
+    (directory / "skill.py").write_text("def run(**kwargs):\n    return 'ok'\n")
+    store = SkillStore(tmp_path)
+
+    skill = store.get("sneaky")
+
+    assert skill is not None
+    assert skill.enabled is False
+    assert store.armed() == []

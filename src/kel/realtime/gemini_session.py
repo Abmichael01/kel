@@ -495,6 +495,7 @@ class GeminiVoiceSession:
             return await self._swipe_desktop(self._arg(args, "direction")), None
         skill = self._skills.get(name) if self._skills is not None else None
         if skill is not None and skill.enabled:
+            self._emit("acted", f"Running skill: {name}")
             result = await asyncio.to_thread(run_skill, skill, args, timeout=self._skills_timeout)
             return result.output, None
         return "I don't have that tool.", None

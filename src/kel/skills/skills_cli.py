@@ -52,7 +52,12 @@ def main(argv: list[str] | None = None) -> None:
         if skill is None:
             print(f"no skill named {parsed.name}")
             return
-        result = run_skill(skill, json.loads(parsed.args), timeout=settings.skills_timeout_seconds)
+        try:
+            call_args = json.loads(parsed.args)
+        except json.JSONDecodeError:
+            print(f"invalid JSON args: {parsed.args}")
+            return
+        result = run_skill(skill, call_args, timeout=settings.skills_timeout_seconds)
         print(result.output)
 
 
