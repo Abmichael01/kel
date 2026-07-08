@@ -227,3 +227,10 @@ def test_build_skill_is_a_reserved_builtin_name() -> None:
     from kel.realtime.options import BUILTIN_TOOL_NAMES
 
     assert "build_skill" in BUILTIN_TOOL_NAMES
+
+
+def test_realtime_prompt_tells_kel_to_build_skills_and_be_decisive() -> None:
+    prompt = build_kel_realtime_instructions("Kel").lower()
+
+    assert "build_skill" in prompt
+    assert "without asking" in prompt or "don't ask" in prompt or "do not ask" in prompt
