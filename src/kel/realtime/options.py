@@ -262,6 +262,25 @@ _RECALL_TOOL = {
     },
 }
 
+BUILTIN_TOOL_NAMES: frozenset[str] = frozenset(
+    {
+        LOOK_TOOL_NAME,
+        SEE_SCREEN_TOOL_NAME,
+        REMEMBER_TOOL_NAME,
+        RECALL_TOOL_NAME,
+        OPEN_URL_TOOL_NAME,
+        WEB_SEARCH_TOOL_NAME,
+        RUN_COMMAND_TOOL_NAME,
+        RUN_IN_TERMINAL_TOOL_NAME,
+        TYPE_TEXT_TOOL_NAME,
+        PRESS_KEY_TOOL_NAME,
+        START_TYPE_MODE_TOOL_NAME,
+        SWIPE_DESKTOP_TOOL_NAME,
+        SET_FEELING_TOOL_NAME,
+        MOVE_TOOL_NAME,
+    }
+)
+
 
 @dataclass(frozen=True, slots=True)
 class RealtimeSessionOptions:
