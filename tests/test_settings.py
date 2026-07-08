@@ -304,10 +304,6 @@ def test_skill_authoring_can_be_configured() -> None:
 
 
 def test_a_non_positive_author_attempts_is_rejected() -> None:
-    import pytest
-
-    from kel.config.settings import ConfigurationError
-
     with pytest.raises(ConfigurationError):
         Settings.from_mapping(
             {"OPENAI_API_KEY": "test-key", "KEL_SKILLS_AUTHOR_MAX_ATTEMPTS": "0"}

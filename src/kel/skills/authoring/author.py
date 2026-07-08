@@ -16,6 +16,7 @@ from kel.skills.contracts import Skill, SkillResult
 from kel.skills.executor import run_skill
 
 _MISSING_MODULE_RE = re.compile(r"No module named '([\w.]+)'")
+_NAME_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
 class Coder(Protocol):
@@ -67,15 +68,32 @@ class SkillAuthor:
         for attempt in range(1, self._max_attempts + 1):
             try:
                 draft = self._coder.draft(goal, feedback)
-            except Exception as error:  # noqa: BLE001 - a bad draft is a failed attempt, not a crash
-                last_error = f"the coder produced an unusable draft: {error}"
+            except ValueError as error:
+                # A malformed draft (bad JSON, missing run(), etc.) is retryable.
+                last_error = f"your previous output was not a valid skill draft: {error}"
+                feedback = last_error
+                continue
+            except Exception as error:  # noqa: BLE001 - a service/API failure, not a bad draft
+                return AuthorOutcome(
+                    ok=False,
+                    output=f"I couldn't reach the skill-builder service: {error}",
+                    attempts=attempt,
+                )
+            if not _NAME_RE.match(draft.name):
+                # An empty/invalid name would make `directory = root / name` collapse onto
+                # (or escape) the skills root; writing nothing keeps a failed attempt from
+                # ever touching the filesystem.
+                last_error = (
+                    "the skill name must be a snake_case identifier (lowercase letters, "
+                    "digits, underscores, starting with a letter)"
+                )
                 feedback = last_error
                 continue
             name = self._resolve_name(draft.name)
             directory = self._write(name, draft, enabled=False)
             result = self._run_with_deps(name, directory, draft.invocation_args)
             if result.ok:
-                self._arm(name, draft, directory)
+                self._arm(name, draft)
                 return AuthorOutcome(
                     ok=True, output=result.output, skill_name=name, attempts=attempt
                 )
@@ -131,7 +149,7 @@ class SkillAuthor:
         )
         return directory
 
-    def _arm(self, name: str, draft: DraftSkill, directory: Path) -> None:
+    def _arm(self, name: str, draft: DraftSkill) -> None:
         self._write(name, draft, enabled=True)
 
     @staticmethod

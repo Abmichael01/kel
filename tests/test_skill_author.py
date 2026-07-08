@@ -180,3 +180,95 @@ def test_build_end_to_end_with_the_real_runner(tmp_path: Path) -> None:
 
     assert outcome.ok is True
     assert outcome.output == "hi Kel"
+
+
+def _write_minimal_skill(root: Path, name: str) -> None:
+    directory = root / name
+    directory.mkdir(parents=True)
+    (directory / "skill.py").write_text("def run():\n    return 'x'\n")
+    (directory / "skill.json").write_text(
+        json.dumps({"name": name, "parameters": {"type": "object", "properties": {}}})
+    )
+
+
+def test_build_rejects_an_empty_name_without_deleting_the_root(tmp_path: Path) -> None:
+    # A pre-existing, unrelated skill must survive an empty-name draft: if the empty
+    # name were allowed through, `directory = root / ""` == root, and the failed-attempt
+    # cleanup would rmtree the WHOLE skills root, taking "keep" down with it.
+    _write_minimal_skill(tmp_path, "keep")
+    coder = ScriptedCoder([a_draft(name="")])
+    author = SkillAuthor(
+        coder=coder,
+        store=make_store(tmp_path),
+        root=tmp_path,
+        run=lambda skill, args, *, timeout: SkillResult(ok=True, output="hi Kel"),
+        max_attempts=1,
+    )
+
+    outcome = author.build("say hi")
+
+    assert outcome.ok is False
+    assert (tmp_path / "keep" / "skill.py").exists()  # root not wiped
+    assert (tmp_path / "keep" / "skill.json").exists()
+    assert not (tmp_path / "skill.py").exists()  # nothing stray written into the root
+    assert not (tmp_path / "skill.json").exists()
+
+
+def test_build_rejects_a_non_snake_case_name_then_succeeds(tmp_path: Path) -> None:
+    coder = ScriptedCoder([a_draft(name="MakeQR"), a_draft(name="make_qr")])
+    results = [SkillResult(ok=True, output="hi Kel")]
+    author = SkillAuthor(
+        coder=coder,
+        store=make_store(tmp_path),
+        root=tmp_path,
+        run=lambda skill, args, *, timeout: results[0],
+    )
+
+    outcome = author.build("make a qr code")
+
+    assert outcome.ok is True
+    assert outcome.skill_name == "make_qr"
+    assert outcome.attempts == 2
+    assert len(coder.feedbacks) == 2
+    assert "snake_case" in coder.feedbacks[1]
+
+
+def test_build_rejects_a_path_traversal_name(tmp_path: Path) -> None:
+    coder = ScriptedCoder([a_draft(name="../evil")])
+    author = SkillAuthor(
+        coder=coder,
+        store=make_store(tmp_path),
+        root=tmp_path,
+        run=lambda skill, args, *, timeout: SkillResult(ok=True, output="hi Kel"),
+        max_attempts=1,
+    )
+
+    outcome = author.build("say hi")
+
+    assert outcome.ok is False
+    assert not (tmp_path.parent / "evil").exists()
+
+
+def test_build_bails_early_on_a_service_error(tmp_path: Path) -> None:
+    class AlwaysRaisingCoder:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def draft(self, goal: str, feedback: str | None = None) -> DraftSkill:
+            self.calls += 1
+            raise RuntimeError("429 RESOURCE_EXHAUSTED")
+
+    coder = AlwaysRaisingCoder()
+    author = SkillAuthor(
+        coder=coder,
+        store=make_store(tmp_path),
+        root=tmp_path,
+        run=lambda skill, args, *, timeout: SkillResult(ok=True, output="hi Kel"),
+        max_attempts=4,
+    )
+
+    outcome = author.build("say hi")
+
+    assert outcome.ok is False
+    assert coder.calls == 1  # did NOT burn all 4 attempts hammering the service
+    assert "429" in outcome.output or "skill-builder service" in outcome.output

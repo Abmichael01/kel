@@ -66,8 +66,9 @@ class GeminiCoder:
         self._client = client
 
     def draft(self, goal: str, feedback: str | None = None) -> DraftSkill:
-        client = self._client or self._make_client()
-        response = client.models.generate_content(
+        if self._client is None:
+            self._client = self._make_client()
+        response = self._client.models.generate_content(
             model=self._model,
             contents=build_contents(goal, feedback),
             config=self._config(),

@@ -383,7 +383,6 @@ def test_gemini_runs_an_armed_skill_tool(tmp_path: Path) -> None:
 
 
 def test_gemini_build_skill_tool_runs_the_author() -> None:
-    import asyncio
     from types import SimpleNamespace
 
     from kel.config.settings import Settings
