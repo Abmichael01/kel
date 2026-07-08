@@ -275,3 +275,40 @@ def test_skills_can_be_configured() -> None:
 def test_a_non_positive_skills_timeout_is_rejected() -> None:
     with pytest.raises(ConfigurationError):
         Settings.from_mapping({"OPENAI_API_KEY": "test-key", "KEL_SKILLS_TIMEOUT_SECONDS": "0"})
+
+
+def test_skill_authoring_defaults() -> None:
+    settings = Settings.from_mapping({"OPENAI_API_KEY": "test-key"})
+
+    assert settings.skills_author_enabled is True
+    assert settings.coder_model == "gemini-2.5-flash"
+    assert settings.skills_author_max_attempts == 4
+    assert settings.skills_author_allow_pip is True
+
+
+def test_skill_authoring_can_be_configured() -> None:
+    settings = Settings.from_mapping(
+        {
+            "OPENAI_API_KEY": "test-key",
+            "KEL_SKILLS_AUTHOR_ENABLED": "false",
+            "KEL_CODER_MODEL": "gemini-3-flash",
+            "KEL_SKILLS_AUTHOR_MAX_ATTEMPTS": "6",
+            "KEL_SKILLS_AUTHOR_ALLOW_PIP": "false",
+        }
+    )
+
+    assert settings.skills_author_enabled is False
+    assert settings.coder_model == "gemini-3-flash"
+    assert settings.skills_author_max_attempts == 6
+    assert settings.skills_author_allow_pip is False
+
+
+def test_a_non_positive_author_attempts_is_rejected() -> None:
+    import pytest
+
+    from kel.config.settings import ConfigurationError
+
+    with pytest.raises(ConfigurationError):
+        Settings.from_mapping(
+            {"OPENAI_API_KEY": "test-key", "KEL_SKILLS_AUTHOR_MAX_ATTEMPTS": "0"}
+        )

@@ -102,6 +102,10 @@ class Settings:
     skills_enabled: bool = True
     skills_path: str = "~/.kel/skills"
     skills_timeout_seconds: int = 20
+    skills_author_enabled: bool = True
+    coder_model: str = "gemini-2.5-flash"
+    skills_author_max_attempts: int = 4
+    skills_author_allow_pip: bool = True
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -214,6 +218,17 @@ class Settings:
         skills_enabled = _parse_bool(values.get("KEL_SKILLS_ENABLED", "true"), "KEL_SKILLS_ENABLED")
         skills_path = values.get("KEL_SKILLS_PATH", "~/.kel/skills").strip() or "~/.kel/skills"
         skills_timeout_text = values.get("KEL_SKILLS_TIMEOUT_SECONDS", "20").strip()
+        skills_author_enabled = _parse_bool(
+            values.get("KEL_SKILLS_AUTHOR_ENABLED", "true"), "KEL_SKILLS_AUTHOR_ENABLED"
+        )
+        coder_model_default = "gemini-2.5-flash"
+        coder_model = (
+            values.get("KEL_CODER_MODEL", coder_model_default).strip() or coder_model_default
+        )
+        author_attempts_text = values.get("KEL_SKILLS_AUTHOR_MAX_ATTEMPTS", "4").strip()
+        skills_author_allow_pip = _parse_bool(
+            values.get("KEL_SKILLS_AUTHOR_ALLOW_PIP", "true"), "KEL_SKILLS_AUTHOR_ALLOW_PIP"
+        )
 
         if not model:
             raise ConfigurationError("KEL_OPENAI_MODEL cannot be empty.")
@@ -342,6 +357,14 @@ class Settings:
         if skills_timeout_seconds <= 0:
             raise ConfigurationError("KEL_SKILLS_TIMEOUT_SECONDS must be positive.")
 
+        try:
+            skills_author_max_attempts = int(author_attempts_text)
+        except ValueError as error:
+            msg = "KEL_SKILLS_AUTHOR_MAX_ATTEMPTS must be an integer."
+            raise ConfigurationError(msg) from error
+        if skills_author_max_attempts <= 0:
+            raise ConfigurationError("KEL_SKILLS_AUTHOR_MAX_ATTEMPTS must be positive.")
+
         return cls(
             openai_api_key=api_key,
             openai_model=model,
@@ -407,4 +430,8 @@ class Settings:
             skills_enabled=skills_enabled,
             skills_path=skills_path,
             skills_timeout_seconds=skills_timeout_seconds,
+            skills_author_enabled=skills_author_enabled,
+            coder_model=coder_model,
+            skills_author_max_attempts=skills_author_max_attempts,
+            skills_author_allow_pip=skills_author_allow_pip,
         )
