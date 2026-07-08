@@ -262,6 +262,33 @@ _RECALL_TOOL = {
     },
 }
 
+BUILD_SKILL_TOOL_NAME = "build_skill"
+_BUILD_SKILL_TOOL = {
+    "type": "function",
+    "name": BUILD_SKILL_TOOL_NAME,
+    "description": (
+        "Build YOURSELF a new skill to do something you cannot already do with your "
+        "current tools. Call this whenever the user asks for something none of your "
+        "tools cover - do not say you can't and do not ask permission. Give a clear "
+        "one-line goal of what the skill should accomplish, including any specific "
+        "values from the request. Building takes a few seconds; say a short holding "
+        "line first, then report the result it gives back."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "goal": {
+                "type": "string",
+                "description": (
+                    "A clear one-line description of what the new skill should do, "
+                    "including the specific values from the user's request."
+                ),
+            }
+        },
+        "required": ["goal"],
+    },
+}
+
 BUILTIN_TOOL_NAMES: frozenset[str] = frozenset(
     {
         LOOK_TOOL_NAME,
@@ -278,6 +305,7 @@ BUILTIN_TOOL_NAMES: frozenset[str] = frozenset(
         SWIPE_DESKTOP_TOOL_NAME,
         SET_FEELING_TOOL_NAME,
         MOVE_TOOL_NAME,
+        BUILD_SKILL_TOOL_NAME,
     }
 )
 
@@ -301,6 +329,7 @@ class RealtimeSessionOptions:
     browser_enabled: bool = False
     shell_enabled: bool = False
     body_enabled: bool = False
+    skills_author_enabled: bool = False
 
     @classmethod
     def from_settings(cls, settings: Settings) -> RealtimeSessionOptions:
@@ -319,6 +348,7 @@ class RealtimeSessionOptions:
             browser_enabled=settings.browser_enabled,
             shell_enabled=settings.shell_enabled,
             body_enabled=settings.body_enabled,
+            skills_author_enabled=settings.skills_author_enabled,
         )
 
     def api_payload(
@@ -393,6 +423,8 @@ class RealtimeSessionOptions:
                     _SWIPE_DESKTOP_TOOL,
                 ]
             )
+        if self.skills_author_enabled:
+            tools.append(_BUILD_SKILL_TOOL)
         return tools
 
     def tools_update(self, tool_specs: list[dict[str, Any]]) -> dict[str, Any]:

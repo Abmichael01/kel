@@ -52,6 +52,7 @@ def test_payload_omits_tools_when_all_capabilities_are_disabled() -> None:
             "KEL_MEMORY_ENABLED": "false",
             "KEL_BROWSER_ENABLED": "false",
             "KEL_SHELL_ENABLED": "false",
+            "KEL_SKILLS_AUTHOR_ENABLED": "false",
         }
     )
     options = RealtimeSessionOptions.from_settings(settings)
@@ -209,3 +210,20 @@ def test_tools_update_carries_a_fresh_tool_list() -> None:
     assert payload["type"] == "realtime"
     assert payload["tool_choice"] == "auto"
     assert [tool["name"] for tool in payload["tools"]] == ["greet"]
+
+
+def test_build_skill_tool_offered_only_when_authoring_enabled() -> None:
+    on = Settings.from_mapping({"OPENAI_API_KEY": "k", "KEL_SKILLS_AUTHOR_ENABLED": "true"})
+    off = Settings.from_mapping({"OPENAI_API_KEY": "k", "KEL_SKILLS_AUTHOR_ENABLED": "false"})
+
+    on_names = {t["name"] for t in RealtimeSessionOptions.from_settings(on).tool_specs()}
+    off_names = {t["name"] for t in RealtimeSessionOptions.from_settings(off).tool_specs()}
+
+    assert "build_skill" in on_names
+    assert "build_skill" not in off_names
+
+
+def test_build_skill_is_a_reserved_builtin_name() -> None:
+    from kel.realtime.options import BUILTIN_TOOL_NAMES
+
+    assert "build_skill" in BUILTIN_TOOL_NAMES
