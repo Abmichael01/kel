@@ -121,6 +121,18 @@ def build_realtime_session(
                 print(f"Body not connected ({error}); continuing without it.")
     from kel.system.environment import describe_environment
 
+    skills = None
+    if settings.skills_enabled:
+        from pathlib import Path
+
+        from kel.realtime.options import BUILTIN_TOOL_NAMES
+        from kel.skills.store import SkillStore
+
+        skills = SkillStore(
+            Path(settings.skills_path).expanduser(),
+            reserved_names=BUILTIN_TOOL_NAMES,
+        )
+
     shared: dict[str, object | None] = dict(
         instructions=build_kel_realtime_instructions(
             settings.robot_name, environment=describe_environment()
@@ -143,6 +155,8 @@ def build_realtime_session(
         body_servo_pin=settings.body_servo_pin,
         close_body=close_body,
         orb=orb,
+        skills=skills,
+        skills_timeout=settings.skills_timeout_seconds,
     )
     if provider == "gemini":
         if not settings.gemini_api_key:

@@ -11,6 +11,7 @@ import asyncio
 import base64
 import json
 import threading
+from pathlib import Path
 from types import SimpleNamespace as NS
 from typing import Any
 
@@ -19,6 +20,7 @@ import pytest
 from kel.config.settings import Settings
 from kel.realtime.gemini_session import GeminiVoiceSession
 from kel.realtime.options import RealtimeSessionOptions
+from kel.skills.store import SkillStore
 
 
 class _Stop(Exception):
@@ -329,3 +331,52 @@ def test_move_lets_kel_speak_while_the_servo_is_still_moving() -> None:
         assert body.calls == [("nod", 9)]
 
     asyncio.run(scenario())
+
+
+def _skill_options() -> RealtimeSessionOptions:
+    return RealtimeSessionOptions.from_settings(Settings.from_mapping({"OPENAI_API_KEY": "k"}))
+
+
+def _build_gemini_skill_session(store: SkillStore) -> GeminiVoiceSession:
+    return GeminiVoiceSession(
+        api_key="unused",
+        model="test-model",
+        voice="Leda",
+        instructions="Be Kel.",
+        options=_skill_options(),
+        microphone=NS(),
+        speaker=NS(),
+        on_event=lambda _event: None,
+        client=NS(),
+        skills=store,
+        skills_timeout=10,
+    )
+
+
+def _write_gemini_skill(root: Path, name: str) -> None:
+    directory = root / name
+    directory.mkdir(parents=True)
+    directory.joinpath("skill.json").write_text(
+        json.dumps(
+            {
+                "name": name,
+                "description": "greet",
+                "parameters": {"type": "object", "properties": {"who": {"type": "string"}}},
+                "enabled": True,
+                "author": "kel",
+                "created_at": "2026-07-08T00:00:00Z",
+                "version": 1,
+            }
+        )
+    )
+    directory.joinpath("skill.py").write_text("def run(who):\n    return f'hi {who}'\n")
+
+
+def test_gemini_runs_an_armed_skill_tool(tmp_path: Path) -> None:
+    _write_gemini_skill(tmp_path, "greet")
+    session = _build_gemini_skill_session(SkillStore(tmp_path))
+
+    output, image = asyncio.run(session._run_tool("greet", {"who": "Kel"}))
+
+    assert output == "hi Kel"
+    assert image is None

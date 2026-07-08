@@ -43,6 +43,8 @@ from kel.realtime.options import (
     WEB_SEARCH_TOOL_NAME,
     RealtimeSessionOptions,
 )
+from kel.skills.executor import run_skill
+from kel.skills.store import SkillStore
 from kel.system.browser import Browser
 from kel.system.keyboard import Keyboard
 from kel.system.launcher import TerminalLauncher
@@ -97,6 +99,8 @@ class GeminiVoiceSession:
         body_servo_pin: int = 9,
         close_body: bool = True,
         orb: Any | None = None,
+        skills: SkillStore | None = None,
+        skills_timeout: float = 20.0,
     ) -> None:
         self._api_key = api_key
         self._model = model
@@ -131,6 +135,8 @@ class GeminiVoiceSession:
         self._body_servo_pin = body_servo_pin
         self._close_body = close_body
         self._orb = orb
+        self._skills = skills
+        self._skills_timeout = skills_timeout
         self._session: Any | None = None
         self._user_buf = ""
         self._assistant_buf = ""
@@ -144,7 +150,7 @@ class GeminiVoiceSession:
 
     def _build_config(self) -> types.LiveConnectConfig:
         """Assemble the Live config: voice, transcripts, tools, resumption, snappy VAD."""
-        tools = gemini_tools(self._options.tool_specs())
+        tools = gemini_tools([*self._options.tool_specs(), *self._skill_specs()])
         instructions = self._instructions + (_TONE_NOTE if self._tone_cues else "")
         config = types.LiveConnectConfig(
             response_modalities=["AUDIO"],
@@ -487,11 +493,18 @@ class GeminiVoiceSession:
             return self._start_type_mode(), None
         if name == SWIPE_DESKTOP_TOOL_NAME:
             return await self._swipe_desktop(self._arg(args, "direction")), None
+        skill = self._skills.get(name) if self._skills is not None else None
+        if skill is not None and skill.enabled:
+            result = await asyncio.to_thread(run_skill, skill, args, timeout=self._skills_timeout)
+            return result.output, None
         return "I don't have that tool.", None
 
     @staticmethod
     def _arg(args: dict[str, Any], key: str) -> str:
         return str(args.get(key, "")).strip()
+
+    def _skill_specs(self) -> list[dict[str, Any]]:
+        return self._skills.tool_specs() if self._skills is not None else []
 
     async def _look(self) -> tuple[str, bytes | None]:
         """Capture one fresh camera frame to attach for the model to read."""
