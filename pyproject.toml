@@ -42,6 +42,7 @@ kel-voice = "kel.interfaces.voice_cli:main"
 kel-blink = "kel.body.blink_test:main"
 kel-body = "kel.body.body_cli:main"
 kel-face = "kel.face.app:main"
+kel-skills = "kel.skills.skills_cli:main"
 kel-seed-memory = "kel.memory.seed_memories:main"
 
 [tool.hatch.build.targets.wheel]
