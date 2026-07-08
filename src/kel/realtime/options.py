@@ -321,7 +321,9 @@ class RealtimeSessionOptions:
             body_enabled=settings.body_enabled,
         )
 
-    def api_payload(self, *, instructions: str) -> dict[str, Any]:
+    def api_payload(
+        self, *, instructions: str, extra_tools: list[dict[str, Any]] | None = None
+    ) -> dict[str, Any]:
         """Return the current Realtime `session.update` configuration."""
         payload: dict[str, Any] = {
             "type": "realtime",
@@ -356,6 +358,8 @@ class RealtimeSessionOptions:
             },
         }
         tools = self.tool_specs()
+        if extra_tools:
+            tools = [*tools, *extra_tools]
         if tools:
             payload["tools"] = tools
             payload["tool_choice"] = "auto"

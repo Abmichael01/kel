@@ -2,11 +2,14 @@ import asyncio
 import base64
 import contextlib
 import json
+import json as _json
+from pathlib import Path
 from types import SimpleNamespace
 
 from kel.realtime.audio import PlaybackProgress
 from kel.realtime.options import RealtimeSessionOptions
 from kel.realtime.session import RealtimeVoiceSession
+from kel.skills.store import SkillStore
 from kel.vision.camera import CameraError
 
 
@@ -827,3 +830,66 @@ def test_realtime_session_emits_completed_transcripts() -> None:
         ("user_transcript", "Hello Kel"),
         ("assistant_transcript", "Hello, builder!"),
     ]
+
+
+def write_session_skill(root: Path, name: str, code: str, *, enabled: bool = True) -> None:
+    directory = root / name
+    directory.mkdir(parents=True)
+    directory.joinpath("skill.json").write_text(
+        _json.dumps(
+            {
+                "name": name,
+                "description": f"{name} skill",
+                "parameters": {"type": "object", "properties": {"who": {"type": "string"}}},
+                "enabled": enabled,
+                "author": "kel",
+                "created_at": "2026-07-08T00:00:00Z",
+                "version": 1,
+            }
+        )
+    )
+    directory.joinpath("skill.py").write_text(code)
+
+
+def build_skill_session(store: SkillStore, events: list[object]) -> RealtimeVoiceSession:
+    options = RealtimeSessionOptions(
+        model="test-model",
+        voice="marin",
+        transcription_model="test-transcriber",
+        vad_threshold=0.5,
+        vad_silence_ms=450,
+        noise_reduction="far_field",
+    )
+    return RealtimeVoiceSession(
+        api_key="unused",
+        instructions="Be Kel.",
+        options=options,
+        microphone=FakeMicrophone(),
+        speaker=FakeSpeaker(),
+        on_event=events.append,
+        client=SimpleNamespace(),
+        skills=store,
+        skills_timeout=10,
+    )
+
+
+def test_a_tool_call_for_an_armed_skill_runs_it_and_returns_output(tmp_path: Path) -> None:
+    write_session_skill(tmp_path, "greet", "def run(who):\n    return f'hi {who}'\n")
+    session = build_skill_session(SkillStore(tmp_path), [])
+    connection, items, responses = fake_connection()
+
+    asyncio.run(session.handle_event(tool_event("greet", {"who": "Kel"}), connection))
+
+    assert items.created[0]["type"] == "function_call_output"
+    assert items.created[0]["output"] == "hi Kel"
+    assert responses.count == 1
+
+
+def test_a_tool_call_for_an_unknown_skill_replies_gracefully(tmp_path: Path) -> None:
+    session = build_skill_session(SkillStore(tmp_path), [])
+    connection, items, responses = fake_connection()
+
+    asyncio.run(session.handle_event(tool_event("ghost", {}), connection))
+
+    assert "ghost" in items.created[0]["output"]
+    assert responses.count == 1

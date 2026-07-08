@@ -184,3 +184,15 @@ def test_type_text_tool_supports_direct_and_composed_writing() -> None:
     assert "exact words" in tool["description"].lower()
     assert "draft" in tool["description"].lower()
     assert "before speaking" in tool["description"].lower()
+
+
+def test_api_payload_appends_extra_tools() -> None:
+    options = RealtimeSessionOptions.from_settings(
+        Settings.from_mapping({"OPENAI_API_KEY": "test-key"})
+    )
+    extra = [{"type": "function", "name": "make_qr_code", "description": "x", "parameters": {}}]
+
+    payload = options.api_payload(instructions="x", extra_tools=extra)
+
+    names = {tool["name"] for tool in payload["tools"]}
+    assert "make_qr_code" in names

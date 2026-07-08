@@ -34,6 +34,8 @@ from kel.realtime.options import (
     WEB_SEARCH_TOOL_NAME,
     RealtimeSessionOptions,
 )
+from kel.skills.executor import run_skill
+from kel.skills.store import SkillStore
 from kel.system.browser import Browser
 from kel.system.keyboard import Keyboard
 from kel.system.launcher import TerminalLauncher
@@ -73,6 +75,8 @@ class RealtimeVoiceSession:
         body_servo_pin: int = 9,
         close_body: bool = True,
         orb: Any | None = None,
+        skills: SkillStore | None = None,
+        skills_timeout: float = 20.0,
     ) -> None:
         self._options = options
         self._instructions = instructions
@@ -96,6 +100,8 @@ class RealtimeVoiceSession:
         self._body_servo_pin = body_servo_pin
         self._close_body = close_body
         self._orb = orb
+        self._skills = skills
+        self._skills_timeout = skills_timeout
         self._type_mode = False
         self._type_mode_needs_separator = False
         self._speaking = False
@@ -110,7 +116,9 @@ class RealtimeVoiceSession:
         """Connect, stream microphone audio, and process server events until cancelled."""
         async with self._client.realtime.connect(model=self._options.model) as connection:
             await connection.session.update(
-                session=self._options.api_payload(instructions=self._instructions)
+                session=self._options.api_payload(
+                    instructions=self._instructions, extra_tools=self._skill_specs()
+                )
             )
             speaker_started = False
             microphone_started = False
@@ -269,6 +277,28 @@ class RealtimeVoiceSession:
             await self._start_type_mode(event, connection)
         elif name == SWIPE_DESKTOP_TOOL_NAME:
             await self._swipe_desktop(event, connection)
+        else:
+            await self._run_skill(event, connection)
+
+    def _skill_specs(self) -> list[dict[str, Any]]:
+        return self._skills.tool_specs() if self._skills is not None else []
+
+    async def _run_skill(self, event: Any, connection: Any) -> None:
+        """Run a matching armed skill and feed its output back to the model."""
+        name = getattr(event, "name", "") or ""
+        skill = self._skills.get(name) if self._skills is not None else None
+        if skill is None or not skill.enabled:
+            await self._reply_to_tool(
+                connection, event.call_id, f"I don't have a skill called {name}."
+            )
+            return
+        try:
+            args = json.loads(getattr(event, "arguments", "") or "{}")
+        except ValueError:
+            args = {}
+        self._emit("acted", f"Running skill: {name}")
+        result = await asyncio.to_thread(run_skill, skill, args, timeout=self._skills_timeout)
+        await self._reply_to_tool(connection, event.call_id, result.output)
 
     @staticmethod
     def _tool_argument(event: Any, key: str) -> str:
