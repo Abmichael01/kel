@@ -13,6 +13,18 @@ from kel.skills.store import SkillStore
 from kel.vision.camera import CameraError
 
 
+class FakeAuthor:
+    def __init__(self, output: str = "built and ran it: done") -> None:
+        self.goals: list[str] = []
+        self._output = output
+
+    def build(self, goal: str):
+        from kel.skills.authoring.contracts import AuthorOutcome
+
+        self.goals.append(goal)
+        return AuthorOutcome(ok=True, output=self._output, skill_name="new_skill", attempts=1)
+
+
 class FakeMicrophone:
     pass
 
@@ -913,3 +925,49 @@ def test_arming_a_skill_mid_session_re_sends_the_tool_list(tmp_path: Path) -> No
     tool_updates = [u for u in connection.session.updated if "tools" in u]
     assert tool_updates, "expected a session.update carrying tools after arming a new skill"
     assert "bye" in {tool["name"] for tool in tool_updates[-1]["tools"]}
+
+
+def build_author_session(author, events: list[object]) -> RealtimeVoiceSession:
+    options = RealtimeSessionOptions(
+        model="test-model",
+        voice="marin",
+        transcription_model="test-transcriber",
+        vad_threshold=0.5,
+        vad_silence_ms=450,
+        noise_reduction="far_field",
+        skills_author_enabled=True,
+    )
+    return RealtimeVoiceSession(
+        api_key="unused",
+        instructions="Be Kel.",
+        options=options,
+        microphone=FakeMicrophone(),
+        speaker=FakeSpeaker(),
+        on_event=events.append,
+        client=SimpleNamespace(),
+        author=author,
+    )
+
+
+def test_build_skill_tool_runs_the_author_and_returns_its_output() -> None:
+    author = FakeAuthor(output="built qr_code and ran it: saved /tmp/x.png")
+    session = build_author_session(author, [])
+    connection, items, responses = fake_connection()
+
+    asyncio.run(
+        session.handle_event(tool_event("build_skill", {"goal": "make a qr code"}), connection)
+    )
+
+    assert author.goals == ["make a qr code"]
+    assert "saved /tmp/x.png" in items.created[0]["output"]
+    assert responses.count == 1
+
+
+def test_build_skill_without_an_author_replies_safely() -> None:
+    session = build_author_session(None, [])
+    connection, items, responses = fake_connection()
+
+    asyncio.run(session.handle_event(tool_event("build_skill", {"goal": "x"}), connection))
+
+    assert "build" in items.created[0]["output"].lower()
+    assert responses.count == 1

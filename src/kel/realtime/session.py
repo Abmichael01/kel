@@ -18,6 +18,7 @@ from kel.realtime.dictation import parse_dictation
 from kel.realtime.echo_cancel import PulseEchoCanceller
 from kel.realtime.events import RealtimeDisplayEvent
 from kel.realtime.options import (
+    BUILD_SKILL_TOOL_NAME,
     LOOK_TOOL_NAME,
     MOVE_TOOL_NAME,
     OPEN_URL_TOOL_NAME,
@@ -34,6 +35,7 @@ from kel.realtime.options import (
     WEB_SEARCH_TOOL_NAME,
     RealtimeSessionOptions,
 )
+from kel.skills.authoring.author import SkillAuthor
 from kel.skills.executor import run_skill
 from kel.skills.store import SkillStore
 from kel.system.browser import Browser
@@ -77,6 +79,7 @@ class RealtimeVoiceSession:
         orb: Any | None = None,
         skills: SkillStore | None = None,
         skills_timeout: float = 20.0,
+        author: SkillAuthor | None = None,
     ) -> None:
         self._options = options
         self._instructions = instructions
@@ -102,6 +105,7 @@ class RealtimeVoiceSession:
         self._orb = orb
         self._skills = skills
         self._skills_timeout = skills_timeout
+        self._author = author
         self._sent_skill_names: set[str] | None = None
         self._type_mode = False
         self._type_mode_needs_separator = False
@@ -278,6 +282,8 @@ class RealtimeVoiceSession:
             await self._start_type_mode(event, connection)
         elif name == SWIPE_DESKTOP_TOOL_NAME:
             await self._swipe_desktop(event, connection)
+        elif name == BUILD_SKILL_TOOL_NAME:
+            await self._build_skill(event, connection)
         else:
             await self._run_skill(event, connection)
 
@@ -300,6 +306,18 @@ class RealtimeVoiceSession:
         self._emit("acted", f"Running skill: {name}")
         result = await asyncio.to_thread(run_skill, skill, args, timeout=self._skills_timeout)
         await self._reply_to_tool(connection, event.call_id, result.output)
+
+    async def _build_skill(self, event: Any, connection: Any) -> None:
+        """Have Kel author a new skill for a goal, then report the result."""
+        goal = self._tool_argument(event, "goal")
+        if self._author is None or not goal:
+            await self._reply_to_tool(
+                connection, event.call_id, "I can't build new skills right now."
+            )
+            return
+        self._emit("acted", f"Building a skill: {goal}")
+        outcome = await asyncio.to_thread(self._author.build, goal)
+        await self._reply_to_tool(connection, event.call_id, outcome.output)
 
     async def _sync_skill_tools(self, connection: Any) -> None:
         """Re-send the tool list when the armed-skill set changed since last turn."""
