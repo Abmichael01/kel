@@ -63,6 +63,9 @@ class SkillStore:
         except (OSError, ValueError):
             _LOG.warning("skill folder %s has an unreadable manifest; skipping", directory.name)
             return None
+        if not isinstance(data, dict):
+            _LOG.warning("skill folder %s has a non-object manifest; skipping", directory.name)
+            return None
         name = str(data.get("name", ""))
         if not _NAME_RE.match(name):
             _LOG.warning("skill folder %s has invalid name %r; skipping", directory.name, name)
@@ -79,13 +82,17 @@ class SkillStore:
         except (OSError, SyntaxError):
             _LOG.warning("skill %s has a skill.py that does not compile; skipping", name)
             return None
-        return Skill(
-            name=name,
-            description=str(data.get("description", "")),
-            parameters=parameters,
-            enabled=bool(data.get("enabled", False)),
-            author=str(data.get("author", "unknown")),
-            created_at=str(data.get("created_at", "")),
-            version=int(data.get("version", 1)),
-            directory=directory,
-        )
+        try:
+            return Skill(
+                name=name,
+                description=str(data.get("description", "")),
+                parameters=parameters,
+                enabled=bool(data.get("enabled", False)),
+                author=str(data.get("author", "unknown")),
+                created_at=str(data.get("created_at", "")),
+                version=int(data.get("version", 1)),
+                directory=directory,
+            )
+        except (AttributeError, TypeError, ValueError, KeyError):
+            _LOG.warning("skill %s has a malformed manifest; skipping", name)
+            return None

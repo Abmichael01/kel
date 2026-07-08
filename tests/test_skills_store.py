@@ -91,3 +91,33 @@ def test_get_returns_a_skill_by_name(tmp_path: Path) -> None:
 
     assert store.get("greet").name == "greet"
     assert store.get("nope") is None
+
+
+def test_a_non_object_manifest_is_skipped(tmp_path: Path) -> None:
+    directory = tmp_path / "weird"
+    directory.mkdir()
+    (directory / "skill.json").write_text(json.dumps([]))
+    (directory / "skill.py").write_text("def run(**kwargs):\n    return 'ok'\n")
+    store = SkillStore(tmp_path)
+
+    assert store.all() == []
+
+
+def test_a_malformed_but_valid_manifest_does_not_abort_the_whole_scan(tmp_path: Path) -> None:
+    write_skill(tmp_path, "good", enabled=True)
+    directory = tmp_path / "bad"
+    directory.mkdir()
+    manifest = {
+        "name": "bad",
+        "description": "bad skill",
+        "parameters": {"type": "object", "properties": {}},
+        "enabled": True,
+        "author": "kel",
+        "created_at": "2026-07-08T00:00:00Z",
+        "version": "not-a-number",
+    }
+    (directory / "skill.json").write_text(json.dumps(manifest))
+    (directory / "skill.py").write_text("def run(**kwargs):\n    return 'ok'\n")
+    store = SkillStore(tmp_path)
+
+    assert [s.name for s in store.all()] == ["good"]
