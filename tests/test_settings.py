@@ -247,3 +247,35 @@ def test_settings_reject_a_negative_auto_sleep() -> None:
 def test_settings_reject_an_unparsable_auto_sleep() -> None:
     with pytest.raises(ConfigurationError, match="AUTO_SLEEP"):
         Settings.from_mapping({"OPENAI_API_KEY": "test-key", "KEL_WAKE_AUTO_SLEEP_SECONDS": "soon"})
+
+
+def test_skills_are_enabled_by_default_with_a_home_path() -> None:
+    settings = Settings.from_mapping({"OPENAI_API_KEY": "test-key"})
+
+    assert settings.skills_enabled is True
+    assert settings.skills_path == "~/.kel/skills"
+    assert settings.skills_timeout_seconds == 20
+
+
+def test_skills_can_be_configured() -> None:
+    settings = Settings.from_mapping(
+        {
+            "OPENAI_API_KEY": "test-key",
+            "KEL_SKILLS_ENABLED": "false",
+            "KEL_SKILLS_PATH": "/tmp/kel-skills",
+            "KEL_SKILLS_TIMEOUT_SECONDS": "45",
+        }
+    )
+
+    assert settings.skills_enabled is False
+    assert settings.skills_path == "/tmp/kel-skills"
+    assert settings.skills_timeout_seconds == 45
+
+
+def test_a_non_positive_skills_timeout_is_rejected() -> None:
+    import pytest
+
+    from kel.config.settings import ConfigurationError
+
+    with pytest.raises(ConfigurationError):
+        Settings.from_mapping({"OPENAI_API_KEY": "test-key", "KEL_SKILLS_TIMEOUT_SECONDS": "0"})

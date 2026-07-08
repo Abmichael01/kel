@@ -99,6 +99,9 @@ class Settings:
     memory_path: str = "kel_memory.json"
     embedding_model: str = "text-embedding-3-small"
     memory_top_k: int = 5
+    skills_enabled: bool = True
+    skills_path: str = "~/.kel/skills"
+    skills_timeout_seconds: int = 20
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -208,6 +211,9 @@ class Settings:
         memory_path = values.get("KEL_MEMORY_PATH", "kel_memory.json").strip()
         embedding_model = values.get("KEL_EMBEDDING_MODEL", "text-embedding-3-small").strip()
         memory_top_k_text = values.get("KEL_MEMORY_TOP_K", "5").strip()
+        skills_enabled = _parse_bool(values.get("KEL_SKILLS_ENABLED", "true"), "KEL_SKILLS_ENABLED")
+        skills_path = values.get("KEL_SKILLS_PATH", "~/.kel/skills").strip() or "~/.kel/skills"
+        skills_timeout_text = values.get("KEL_SKILLS_TIMEOUT_SECONDS", "20").strip()
 
         if not model:
             raise ConfigurationError("KEL_OPENAI_MODEL cannot be empty.")
@@ -329,6 +335,13 @@ class Settings:
         if memory_top_k <= 0:
             raise ConfigurationError("KEL_MEMORY_TOP_K must be positive.")
 
+        try:
+            skills_timeout_seconds = int(skills_timeout_text)
+        except ValueError as error:
+            raise ConfigurationError("KEL_SKILLS_TIMEOUT_SECONDS must be an integer.") from error
+        if skills_timeout_seconds <= 0:
+            raise ConfigurationError("KEL_SKILLS_TIMEOUT_SECONDS must be positive.")
+
         return cls(
             openai_api_key=api_key,
             openai_model=model,
@@ -391,4 +404,7 @@ class Settings:
             memory_path=memory_path,
             embedding_model=embedding_model,
             memory_top_k=memory_top_k,
+            skills_enabled=skills_enabled,
+            skills_path=skills_path,
+            skills_timeout_seconds=skills_timeout_seconds,
         )
