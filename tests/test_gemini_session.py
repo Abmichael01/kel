@@ -380,3 +380,42 @@ def test_gemini_runs_an_armed_skill_tool(tmp_path: Path) -> None:
 
     assert output == "hi Kel"
     assert image is None
+
+
+def test_gemini_build_skill_tool_runs_the_author() -> None:
+    import asyncio
+    from types import SimpleNamespace
+
+    from kel.config.settings import Settings
+    from kel.realtime.gemini_session import GeminiVoiceSession
+    from kel.realtime.options import RealtimeSessionOptions
+    from kel.skills.authoring.contracts import AuthorOutcome
+
+    class FakeAuthor:
+        def __init__(self) -> None:
+            self.goals: list[str] = []
+
+        def build(self, goal: str):
+            self.goals.append(goal)
+            return AuthorOutcome(ok=True, output="built and ran it: done", attempts=1)
+
+    author = FakeAuthor()
+    options = RealtimeSessionOptions.from_settings(Settings.from_mapping({"OPENAI_API_KEY": "k"}))
+    session = GeminiVoiceSession(
+        api_key="unused",
+        model="test-model",
+        voice="Leda",
+        instructions="Be Kel.",
+        options=options,
+        microphone=SimpleNamespace(),
+        speaker=SimpleNamespace(),
+        on_event=lambda _e: None,
+        client=SimpleNamespace(),
+        author=author,
+    )
+
+    output, image = asyncio.run(session._run_tool("build_skill", {"goal": "make a qr code"}))
+
+    assert author.goals == ["make a qr code"]
+    assert "done" in output
+    assert image is None

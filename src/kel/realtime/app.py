@@ -133,6 +133,10 @@ def build_realtime_session(
             reserved_names=BUILTIN_TOOL_NAMES,
         )
 
+    from kel.skills.authoring.app import build_author
+
+    author = build_author(settings)
+
     shared: dict[str, object | None] = dict(
         instructions=build_kel_realtime_instructions(
             settings.robot_name, environment=describe_environment()
@@ -157,6 +161,7 @@ def build_realtime_session(
         orb=orb,
         skills=skills,
         skills_timeout=settings.skills_timeout_seconds,
+        author=author,
     )
     if provider == "gemini":
         if not settings.gemini_api_key:

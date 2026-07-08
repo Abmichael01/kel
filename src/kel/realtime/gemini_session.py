@@ -27,6 +27,7 @@ from kel.realtime.echo_cancel import PulseEchoCanceller
 from kel.realtime.events import RealtimeDisplayEvent
 from kel.realtime.gemini_tools import gemini_tools
 from kel.realtime.options import (
+    BUILD_SKILL_TOOL_NAME,
     LOOK_TOOL_NAME,
     MOVE_TOOL_NAME,
     OPEN_URL_TOOL_NAME,
@@ -43,6 +44,7 @@ from kel.realtime.options import (
     WEB_SEARCH_TOOL_NAME,
     RealtimeSessionOptions,
 )
+from kel.skills.authoring.author import SkillAuthor
 from kel.skills.executor import run_skill
 from kel.skills.store import SkillStore
 from kel.system.browser import Browser
@@ -101,6 +103,7 @@ class GeminiVoiceSession:
         orb: Any | None = None,
         skills: SkillStore | None = None,
         skills_timeout: float = 20.0,
+        author: SkillAuthor | None = None,
     ) -> None:
         self._api_key = api_key
         self._model = model
@@ -137,6 +140,7 @@ class GeminiVoiceSession:
         self._orb = orb
         self._skills = skills
         self._skills_timeout = skills_timeout
+        self._author = author
         self._session: Any | None = None
         self._user_buf = ""
         self._assistant_buf = ""
@@ -493,6 +497,8 @@ class GeminiVoiceSession:
             return self._start_type_mode(), None
         if name == SWIPE_DESKTOP_TOOL_NAME:
             return await self._swipe_desktop(self._arg(args, "direction")), None
+        if name == BUILD_SKILL_TOOL_NAME:
+            return await self._build_skill(self._arg(args, "goal")), None
         skill = self._skills.get(name) if self._skills is not None else None
         if skill is not None and skill.enabled:
             self._emit("acted", f"Running skill: {name}")
@@ -506,6 +512,13 @@ class GeminiVoiceSession:
 
     def _skill_specs(self) -> list[dict[str, Any]]:
         return self._skills.tool_specs() if self._skills is not None else []
+
+    async def _build_skill(self, goal: str) -> str:
+        if self._author is None or not goal:
+            return "I can't build new skills right now."
+        self._emit("acted", f"Building a skill: {goal}")
+        outcome = await asyncio.to_thread(self._author.build, goal)
+        return outcome.output
 
     async def _look(self) -> tuple[str, bytes | None]:
         """Capture one fresh camera frame to attach for the model to read."""
